@@ -1,0 +1,2309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=5">
+<meta name="theme-color" content="#f6f3ed" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#101419" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Ledger">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="description" content="Offline portfolio and capital-gains analyser for Indian equity trades.">
+<title>Ledger — Portfolio Analyser</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f6f3ed; --bg-grad:radial-gradient(1100px 520px at 12% -8%, #fffdf8 0%, rgba(255,253,248,0) 62%);
+  --surface:#fffdf9; --surface2:#f9f5ee; --surface3:#f1ebdf;
+  --ink:#161e26; --ink2:#3a444e; --muted:#7b7368;
+  --line:rgba(22,30,38,.13); --line2:rgba(22,30,38,.065);
+  --accent:#0d4d5a; --accent-soft:rgba(13,77,90,.08); --accent-ink:#0d4d5a;
+  --gold:#a4762b; --gold-soft:rgba(164,118,43,.11);
+  --profit:#0a7350; --profit-soft:rgba(10,115,80,.1);
+  --loss:#a92a1e; --loss-soft:rgba(169,42,30,.09);
+  --shadow:0 1px 2px rgba(22,30,38,.05), 0 10px 28px -20px rgba(22,30,38,.5);
+  --serif:'Instrument Serif', Georgia, 'Times New Roman', serif;
+  --sans:'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --mono:'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --navh:62px;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0f1318; --bg-grad:radial-gradient(1100px 520px at 12% -8%, #1a212a 0%, rgba(26,33,42,0) 62%);
+    --surface:#161c23; --surface2:#1b222a; --surface3:#212932;
+    --ink:#e9e5dd; --ink2:#c2c8ce; --muted:#8d959d;
+    --line:rgba(255,255,255,.11); --line2:rgba(255,255,255,.055);
+    --accent:#5cbccb; --accent-soft:rgba(92,188,203,.13); --accent-ink:#83d2df;
+    --gold:#d6a860; --gold-soft:rgba(214,168,96,.13);
+    --profit:#43c391; --profit-soft:rgba(67,195,145,.13);
+    --loss:#e2756b; --loss-soft:rgba(226,117,107,.12);
+    --shadow:0 1px 2px rgba(0,0,0,.35), 0 14px 34px -20px rgba(0,0,0,.9);
+  }
+}
+*{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent}
+html{-webkit-text-size-adjust:100%}
+body{
+  font-family:var(--sans); background:var(--bg); background-image:var(--bg-grad);
+  background-repeat:no-repeat; background-attachment:fixed; color:var(--ink);
+  font-size:14px; line-height:1.55; min-height:100vh; -webkit-font-smoothing:antialiased;
+  padding-bottom:calc(var(--navh) + env(safe-area-inset-bottom, 0px));
+}
+@media (min-width:900px){ body{padding-bottom:0} }
+
+/* ---------------- header ---------------- */
+.hdr{
+  position:sticky; top:0; z-index:50; display:flex; align-items:center; gap:12px;
+  padding:calc(env(safe-area-inset-top, 0px) + 10px) 16px 10px;
+  background:var(--bg);
+  background:color-mix(in srgb, var(--bg) 86%, transparent);
+  backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
+  border-bottom:1px solid var(--line2); max-width:1240px; margin:0 auto;
+}
+.hdr__brand{display:flex; align-items:center; gap:9px; flex:none}
+.mark{
+  width:30px; height:30px; border-radius:9px; display:grid; place-items:center; flex:none;
+  background:var(--accent); color:#fff; font-family:var(--serif); font-size:19px; line-height:1;
+  box-shadow:inset 0 -1px 0 rgba(0,0,0,.15);
+}
+@media (prefers-color-scheme: dark){ .mark{color:#0c1116} }
+.hdr__name{font-family:var(--serif); font-size:21px; letter-spacing:-.01em; line-height:1}
+.hdr__sub{display:none; font-family:var(--mono); font-size:9px; letter-spacing:.15em; text-transform:uppercase; color:var(--muted)}
+.hdr__acts{margin-left:auto; display:flex; gap:6px; flex:none}
+.icon-btn{
+  width:38px; height:38px; display:grid; place-items:center; border-radius:10px; cursor:pointer;
+  background:var(--surface); border:1px solid var(--line2); color:var(--ink2); transition:.15s;
+}
+.icon-btn:hover{background:var(--surface2); color:var(--ink)}
+.icon-btn:active{transform:scale(.95)}
+.icon-btn svg{width:19px; height:19px}
+
+/* ---------------- nav ---------------- */
+.nav{
+  position:fixed; left:0; right:0; bottom:0; z-index:60; display:flex;
+  padding:6px 6px calc(6px + env(safe-area-inset-bottom, 0px));
+  background:var(--surface);
+  background:color-mix(in srgb, var(--surface) 92%, transparent);
+  backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
+  border-top:1px solid var(--line2);
+}
+.tab{
+  flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px;
+  background:none; border:0; cursor:pointer; font-family:inherit; color:var(--muted);
+  padding:6px 2px; border-radius:10px; transition:.15s; min-height:48px;
+}
+.tab svg{width:20px; height:20px; stroke-width:1.7}
+.tab span{font-size:9.5px; font-weight:600; letter-spacing:.01em}
+.tab.is-on{color:var(--accent-ink)}
+.tab.is-on svg{stroke-width:2.1}
+.tab:active{transform:scale(.94)}
+@media (min-width:900px){
+  .nav{position:static; padding:0; background:none; border:0; backdrop-filter:none; margin-left:18px; gap:2px}
+  .tab{flex-direction:row; gap:7px; padding:8px 13px; min-height:0; border-radius:8px}
+  .tab svg{width:16px; height:16px}
+  .tab span{font-size:12.5px}
+  .tab.is-on{background:var(--accent-soft)}
+  .tab:hover{background:var(--surface2); color:var(--ink)}
+  .hdr__sub{display:block}
+}
+
+/* ---------------- layout ---------------- */
+.wrap{max-width:1240px; margin:0 auto; padding:16px 16px 40px}
+@media (min-width:900px){ .wrap{padding:26px 22px 60px} }
+.sec-head{margin-bottom:14px}
+.sec-head__row{display:flex; align-items:flex-end; justify-content:space-between; gap:12px; flex-wrap:wrap}
+.eyebrow{font-family:var(--mono); font-size:9.5px; letter-spacing:.15em; text-transform:uppercase; color:var(--muted); display:flex; align-items:center; gap:7px}
+.eyebrow::before{content:''; width:5px; height:5px; border-radius:50%; background:var(--gold); flex:none}
+.sec-title{font-family:var(--serif); font-size:26px; line-height:1.12; letter-spacing:-.01em; margin-top:2px}
+.sec-sub{font-size:12px; color:var(--muted); margin-top:4px; line-height:1.5}
+@media (min-width:900px){ .sec-title{font-size:30px} .sec-sub{font-size:12.5px} }
+
+.card{background:var(--surface); border:1px solid var(--line2); border-radius:16px; box-shadow:var(--shadow); overflow:hidden}
+.card + .card{margin-top:12px}
+.card__head{display:flex; align-items:baseline; justify-content:space-between; gap:10px; padding:14px 16px 0}
+.card__title{font-size:12.5px; font-weight:700; letter-spacing:.01em}
+.card__note{font-size:10.5px; color:var(--muted); font-family:var(--mono)}
+.card__pad{padding:14px 16px 16px}
+.sec-gap{height:14px}
+
+/* ---------------- hero + kpis ---------------- */
+.hero{
+  position:relative; border-radius:18px; padding:18px 18px 16px; margin-bottom:12px;
+  background:linear-gradient(150deg, var(--surface) 0%, var(--surface2) 100%);
+  border:1px solid var(--line2); box-shadow:var(--shadow); overflow:hidden;
+}
+.hero::before{content:''; position:absolute; inset:0 auto 0 0; width:3px; background:linear-gradient(180deg, var(--accent), transparent)}
+.hero__label{font-family:var(--mono); font-size:9.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted)}
+.hero__val{font-family:var(--mono); font-size:34px; font-weight:600; letter-spacing:-.03em; line-height:1.1; margin:7px 0 8px; font-variant-numeric:tabular-nums}
+.hero__meta{display:flex; flex-wrap:wrap; gap:6px 14px; font-size:11.5px; color:var(--muted)}
+.hero__meta b{font-family:var(--mono); font-weight:500}
+@media (min-width:900px){ .hero__val{font-size:42px} }
+
+.kpis{display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-bottom:12px}
+@media (min-width:760px){ .kpis{grid-template-columns:repeat(4,1fr)} }
+.kpi{background:var(--surface); border:1px solid var(--line2); border-radius:14px; padding:13px 14px; box-shadow:var(--shadow); min-width:0}
+.kpi__label{font-family:var(--mono); font-size:9px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); margin-bottom:7px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.kpi__val{font-family:var(--mono); font-size:18px; font-weight:600; letter-spacing:-.02em; line-height:1.2; font-variant-numeric:tabular-nums}
+.kpi__sub{font-size:10.5px; color:var(--muted); margin-top:5px; line-height:1.4}
+@media (min-width:900px){ .kpi__val{font-size:21px} }
+.pos{color:var(--profit)} .neg{color:var(--loss)} .flat{color:var(--muted)}
+
+/* ---------------- charts ---------------- */
+.chart-grid{display:grid; gap:12px; margin-bottom:12px}
+@media (min-width:820px){ .chart-grid--2{grid-template-columns:1.5fr 1fr} .chart-grid--even{grid-template-columns:1fr 1fr} }
+.chart-body{padding:6px 12px 12px}
+svg{display:block; width:100%; height:auto; overflow:visible}
+.legend{display:flex; flex-wrap:wrap; gap:5px 12px; padding:4px 4px 0; font-size:11px; color:var(--muted)}
+.legend span{display:inline-flex; align-items:center; gap:5px}
+.legend i{width:8px; height:8px; border-radius:2px; flex:none}
+
+/* ---------------- heatmap ---------------- */
+.heat{overflow-x:auto; padding-bottom:4px}
+.heat__grid{display:grid; grid-template-columns:auto repeat(12, minmax(26px,1fr)); gap:3px; min-width:420px}
+.heat__m{font-family:var(--mono); font-size:8px; letter-spacing:.04em; color:var(--muted); text-align:center; padding-bottom:2px; text-transform:uppercase}
+.heat__y{font-family:var(--mono); font-size:9.5px; color:var(--muted); align-self:center; padding-right:5px}
+.heat__c{aspect-ratio:1.35; border-radius:4px; background:var(--surface3); display:grid; place-items:center; font-family:var(--mono); font-size:8px; color:transparent}
+
+/* ---------------- tables ---------------- */
+.tbl-wrap{overflow-x:auto; -webkit-overflow-scrolling:touch}
+table{width:100%; border-collapse:collapse; font-size:12.5px}
+thead th{
+  text-align:left; font-family:var(--mono); font-size:9px; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--muted); font-weight:500; padding:9px 12px; border-bottom:1px solid var(--line);
+  background:var(--surface2); white-space:nowrap;
+}
+tbody td{padding:9px 12px; border-bottom:1px solid var(--line2); vertical-align:middle}
+tbody tr:last-child td{border-bottom:0}
+tbody tr:hover{background:var(--surface2)}
+.num{font-family:var(--mono); font-variant-numeric:tabular-nums; text-align:right; white-space:nowrap}
+.sym{font-weight:700; letter-spacing:.01em}
+.muted{color:var(--muted)}
+.tiny{font-size:10px; font-weight:400}
+tfoot td{padding:10px 12px; font-weight:600; border-top:1px solid var(--line); background:var(--surface2); font-family:var(--mono); font-size:12px}
+.badge{display:inline-block; font-family:var(--mono); font-size:9px; letter-spacing:.06em; padding:2px 6px; border-radius:5px; text-transform:uppercase; font-weight:500; white-space:nowrap}
+.badge--buy{background:var(--profit-soft); color:var(--profit)}
+.badge--sell{background:var(--loss-soft); color:var(--loss)}
+.badge--lt{background:var(--gold-soft); color:var(--gold)}
+.badge--st{background:var(--accent-soft); color:var(--accent-ink)}
+.pill{font-family:var(--mono); font-size:9.5px; padding:2px 7px; border-radius:20px; background:var(--surface3); color:var(--muted); white-space:nowrap}
+
+/* stacked cards on phones */
+@media (max-width:720px){
+  .tbl thead{display:none}
+  .tbl table, .tbl tbody, .tbl tr{display:block; width:100%}
+  .tbl tbody tr{
+    border:1px solid var(--line2); border-radius:13px; margin:10px; padding:4px 0 6px;
+    background:var(--surface); box-shadow:var(--shadow); position:relative;
+  }
+  .tbl tbody tr:hover{background:var(--surface)}
+  .tbl tbody td{
+    display:flex; align-items:baseline; justify-content:space-between; gap:14px;
+    border:0; padding:5px 14px; text-align:right;
+  }
+  .tbl tbody td::before{
+    content:attr(data-label); font-family:var(--mono); font-size:9px; letter-spacing:.09em;
+    text-transform:uppercase; color:var(--muted); text-align:left; flex:none; font-weight:500;
+  }
+  .tbl tbody td[data-label=""]::before{content:none}
+  .tbl tbody td.cell-main{
+    padding:10px 14px 8px; margin-bottom:4px; border-bottom:1px solid var(--line2);
+    font-size:15px; text-align:left; display:flex; align-items:center; gap:8px;
+  }
+  .tbl tbody td.cell-act{padding-top:8px}
+  .tbl tfoot{display:block; margin:10px; border:1px solid var(--line2); border-radius:13px; background:var(--surface2)}
+  .tbl tfoot tr{display:block; padding:4px 0}
+  .tbl tfoot td{display:flex; justify-content:space-between; border:0; padding:5px 14px; background:none}
+  .tbl tfoot td::before{content:attr(data-label); font-family:var(--mono); font-size:9px; letter-spacing:.09em; text-transform:uppercase; color:var(--muted)}
+  .tbl tfoot td:empty{display:none}
+}
+
+/* ---------------- buttons / forms ---------------- */
+.btn{
+  font-family:inherit; font-size:12.5px; font-weight:600; cursor:pointer; border-radius:10px;
+  padding:9px 14px; border:1px solid var(--line); background:var(--surface); color:var(--ink);
+  transition:.15s; white-space:nowrap; display:inline-flex; align-items:center; justify-content:center; gap:6px;
+  min-height:38px;
+}
+.btn:hover{background:var(--surface2); border-color:var(--ink2)}
+.btn:active{transform:scale(.98)}
+.btn--primary{background:var(--accent); border-color:var(--accent); color:#fff}
+.btn--primary:hover{background:var(--accent-ink); filter:brightness(1.08); color:#fff}
+@media (prefers-color-scheme: dark){ .btn--primary{color:#0b1015} .btn--primary:hover{color:#0b1015} }
+.btn--ghost{background:none; border-color:transparent; color:var(--muted)}
+.btn--ghost:hover{color:var(--ink); background:var(--surface2)}
+.btn--danger{color:var(--loss); border-color:color-mix(in srgb, var(--loss) 32%, transparent)}
+.btn--danger:hover{background:var(--loss-soft)}
+.btn--sm{padding:6px 10px; font-size:11.5px; border-radius:8px; min-height:32px}
+.btn--block{width:100%}
+.btn:disabled{opacity:.45; cursor:not-allowed}
+.field{display:flex; flex-direction:column; gap:5px; min-width:0}
+.field label{font-family:var(--mono); font-size:9px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted)}
+input, select, textarea{
+  font-family:var(--mono); font-size:13px; padding:9px 11px; border-radius:10px;
+  border:1px solid var(--line); background:var(--surface); color:var(--ink); width:100%;
+  transition:.15s; min-height:40px;
+}
+textarea{font-family:var(--mono); font-size:11.5px; line-height:1.5; resize:vertical}
+input:focus, select:focus, textarea:focus{outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft)}
+input[type=search]{font-family:var(--sans)}
+.grid-form{display:grid; grid-template-columns:repeat(auto-fit, minmax(130px,1fr)); gap:11px}
+.toolbar{display:flex; gap:8px; align-items:center; flex-wrap:wrap; padding:12px 14px; border-bottom:1px solid var(--line2)}
+.toolbar input[type=search]{flex:1; min-width:130px}
+.toolbar select{width:auto; min-width:0; flex:none}
+.chips{display:flex; gap:6px; flex-wrap:wrap}
+.chip{
+  font-family:inherit; font-size:11.5px; font-weight:600; padding:6px 11px; border-radius:20px;
+  border:1px solid var(--line); background:var(--surface); color:var(--muted); cursor:pointer; transition:.15s;
+}
+.chip.is-on{background:var(--accent); border-color:var(--accent); color:#fff}
+@media (prefers-color-scheme: dark){ .chip.is-on{color:#0b1015} }
+
+/* ---------------- misc ---------------- */
+.note{border:1px solid var(--line2); background:var(--surface2); border-radius:12px; padding:12px 14px; font-size:12px; color:var(--ink2); line-height:1.6}
+.note--warn{border-color:color-mix(in srgb, var(--gold) 34%, transparent); background:var(--gold-soft)}
+.note--bad{border-color:color-mix(in srgb, var(--loss) 28%, transparent); background:var(--loss-soft)}
+.note--ok{border-color:color-mix(in srgb, var(--profit) 28%, transparent); background:var(--profit-soft)}
+.empty{text-align:center; padding:44px 20px}
+.empty h2{font-family:var(--serif); font-size:26px; margin-bottom:8px; font-weight:400}
+.empty p{color:var(--muted); max-width:400px; margin:0 auto 18px; font-size:12.5px; line-height:1.6}
+.empty .row{justify-content:center; display:flex; gap:8px; flex-wrap:wrap}
+.drop{
+  border:1.5px dashed var(--line); border-radius:14px; padding:32px 18px; text-align:center;
+  background:var(--surface2); transition:.18s; cursor:pointer;
+}
+.drop:hover,.drop.is-over{border-color:var(--accent); background:var(--accent-soft)}
+.drop__icon{width:38px; height:38px; margin:0 auto 10px; color:var(--accent); opacity:.85}
+.drop h3{font-family:var(--serif); font-size:20px; font-weight:400; margin-bottom:5px}
+.drop p{color:var(--muted); font-size:12px}
+.spin{display:inline-block; width:12px; height:12px; border:2px solid var(--line); border-top-color:var(--accent); border-radius:50%; animation:sp .7s linear infinite; vertical-align:-1px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.modal{position:fixed; inset:0; z-index:80; display:flex; align-items:flex-end; justify-content:center; background:rgba(10,15,20,.45); backdrop-filter:blur(3px)}
+@media (min-width:640px){ .modal{align-items:center; padding:20px} }
+.modal__box{
+  background:var(--surface); border:1px solid var(--line); width:100%; max-width:540px;
+  border-radius:20px 20px 0 0; box-shadow:0 -10px 60px rgba(0,0,0,.3);
+  max-height:92vh; overflow:auto; padding-bottom:env(safe-area-inset-bottom,0px);
+  animation:slideUp .26s cubic-bezier(.2,.8,.3,1);
+}
+@media (min-width:640px){ .modal__box{border-radius:18px; box-shadow:0 30px 80px -20px rgba(0,0,0,.5); animation:fadeScale .2s ease} }
+@keyframes slideUp{from{transform:translateY(24px); opacity:.6} to{transform:translateY(0); opacity:1}}
+@keyframes fadeScale{from{transform:scale(.97); opacity:0} to{transform:scale(1); opacity:1}}
+.modal__grab{width:38px; height:4px; border-radius:3px; background:var(--line); margin:9px auto 0}
+@media (min-width:640px){ .modal__grab{display:none} }
+.modal__head{padding:12px 18px 0; display:flex; justify-content:space-between; align-items:flex-start; gap:10px}
+.modal__body{padding:14px 18px 20px}
+#toast{position:fixed; bottom:calc(var(--navh) + 16px + env(safe-area-inset-bottom,0px)); left:50%; transform:translateX(-50%) translateY(14px); z-index:90; opacity:0; transition:.24s; pointer-events:none; max-width:90vw}
+@media (min-width:900px){ #toast{bottom:24px} }
+#toast.on{opacity:1; transform:translateX(-50%) translateY(0)}
+#toast .msg{background:var(--ink); color:var(--bg); padding:10px 16px; border-radius:10px; font-size:12.5px; font-weight:500; box-shadow:0 10px 30px rgba(0,0,0,.28); text-align:center}
+.stack{display:flex; flex-direction:column; gap:12px}
+.row{display:flex; gap:9px; flex-wrap:wrap}
+.stat-line{display:flex; justify-content:space-between; gap:12px; padding:8px 0; border-bottom:1px solid var(--line2); font-size:12.5px; align-items:baseline}
+.stat-line:last-child{border-bottom:0}
+.stat-line b{font-family:var(--mono); font-variant-numeric:tabular-nums; font-weight:600; text-align:right}
+.hint{font-size:11px; color:var(--muted); line-height:1.55}
+.sr{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0)}
+@media (prefers-reduced-motion: reduce){ *{animation:none !important; transition:none !important} }
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <div class="hdr__brand">
+    <span class="mark">L</span>
+    <div>
+      <div class="hdr__name">Ledger</div>
+      <div class="hdr__sub">Portfolio Analyser</div>
+    </div>
+  </div>
+
+  <nav class="nav" id="nav" aria-label="Main">
+    <button class="tab" data-act="tab" data-tab="dashboard" aria-label="Dashboard">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 10.5 12 3.5l8.5 7"/><path d="M5.8 9.6V20h12.4V9.6"/><path d="M10 20v-5h4v5"/></svg>
+      <span>Home</span>
+    </button>
+    <button class="tab" data-act="tab" data-tab="trades" aria-label="Transactions">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7.5h12.5M13.5 4 17 7.5 13.5 11"/><path d="M20 16.5H7.5M10.5 13 7 16.5 10.5 20"/></svg>
+      <span>Trades</span>
+    </button>
+    <button class="tab" data-act="tab" data-tab="holdings" aria-label="Holdings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v8.5h8.5"/></svg>
+      <span>Holdings</span>
+    </button>
+    <button class="tab" data-act="tab" data-tab="dividends" aria-label="Dividends">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M9 8h6M9 11h6M13.8 8c1.3 0 2.2.9 2.2 2.1 0 1.3-1.1 2.1-2.7 2.1H9l4.3 5.3"/></svg>
+      <span>Dividends</span>
+    </button>
+    <button class="tab" data-act="tab" data-tab="import" aria-label="Import">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15.5V4M8.2 7.8 12 4l3.8 3.8"/><path d="M4.5 15v3.5A1.5 1.5 0 0 0 6 20h12a1.5 1.5 0 0 0 1.5-1.5V15"/></svg>
+      <span>Import</span>
+    </button>
+  </nav>
+
+  <div class="hdr__acts">
+    <button class="icon-btn" data-act="backup" aria-label="Download backup" title="Backup">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v11M8.2 10.7 12 14.5l3.8-3.8"/><path d="M4.5 16v2.5A1.5 1.5 0 0 0 6 20h12a1.5 1.5 0 0 0 1.5-1.5V16"/></svg>
+    </button>
+    <button class="icon-btn" data-act="tab" data-tab="settings" aria-label="Settings" title="Settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2.8v2.4M12 18.8v2.4M4.6 7.6l2 1.2M17.4 15.2l2 1.2M4.6 16.4l2-1.2M17.4 8.8l2-1.2"/></svg>
+    </button>
+  </div>
+</header>
+
+<main class="wrap" id="view"></main>
+<div id="modalHost"></div>
+<div id="toast"><div class="msg"></div></div>
+
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+/* ============================================================
+   Portfolio Analyzer — core engine. No DOM, no storage.
+   Testable in node: require('./engine.js')
+   ============================================================ */
+var PA = (function () {
+  'use strict';
+
+  var r2 = function (n) { return Math.round((Number(n) + Number.EPSILON) * 100) / 100; };
+  var pad2 = function (n) { return String(n).padStart(2, '0'); };
+  var isoUTC = function (d) { return d.getUTCFullYear() + '-' + pad2(d.getUTCMonth() + 1) + '-' + pad2(d.getUTCDate()); };
+  var sum = function (arr, f) { return arr.reduce(function (a, b) { return a + (f ? f(b) : b); }, 0); };
+
+  /* ---------- numbers ---------- */
+  function parseNumber(v) {
+    if (v === null || v === undefined) return NaN;
+    if (typeof v === 'number') return isFinite(v) ? v : NaN;
+    var s = String(v).trim();
+    if (!s) return NaN;
+    var neg = false;
+    if (/^\(.*\)$/.test(s)) { neg = true; s = s.slice(1, -1); }
+    if (/-$/.test(s)) { neg = true; s = s.replace(/-$/, ''); }
+    s = s.replace(/[\u20b9$,%\s]/g, '');
+    if (s === '' || s === '-') return NaN;
+    // 1.234,56 european style
+    if (/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(s)) s = s.replace(/\./g, '').replace(',', '.');
+    var n = parseFloat(s);
+    if (!isFinite(n)) return NaN;
+    return neg ? -n : n;
+  }
+
+  /* ---------- dates ---------- */
+  var MONTHS = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, sept: 9, oct: 10, nov: 11, dec: 12 };
+
+  function parseDate(v) {
+    if (v === null || v === undefined) return null;
+    if (typeof v === 'number' && v > 20000 && v < 80000) {
+      var ms = Math.round((v - 25569) * 86400000);
+      var d0 = new Date(ms);
+      if (!isNaN(d0.getTime())) return isoUTC(d0);
+    }
+    if (v instanceof Date) return isoUTC(v);
+    var s = String(v).trim();
+    if (!s) return null;
+    s = s.replace(/(\d)(st|nd|rd|th)\b/gi, '$1');
+    var m = s.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (m) return m[1] + '-' + pad2(+m[2]) + '-' + pad2(+m[3]);
+    m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})/);
+    if (m) {
+      var a = +m[1], b = +m[2], y = +m[3];
+      if (y < 100) y += (y > 70 ? 1900 : 2000);
+      var day, mon;
+      if (a > 12) { day = a; mon = b; }
+      else if (b > 12) { day = b; mon = a; }
+      else { day = a; mon = b; } // Indian files default to dd/mm
+      if (mon < 1 || mon > 12 || day < 1 || day > 31) return null;
+      return y + '-' + pad2(mon) + '-' + pad2(day);
+    }
+    m = s.match(/^(\d{1,2})[\s\-]([A-Za-z]{3,9})[\s\-,]+(\d{2,4})/);
+    if (m && MONTHS[m[2].slice(0, 4).toLowerCase()]) {
+      var mm = MONTHS[m[2].slice(0, 4).toLowerCase()] || MONTHS[m[2].slice(0, 3).toLowerCase()];
+      var yy = +m[3]; if (yy < 100) yy += 2000;
+      return yy + '-' + pad2(mm) + '-' + pad2(+m[1]);
+    }
+    m = s.match(/^([A-Za-z]{3,9})[\s\-](\d{1,2})[\s\-,]+(\d{2,4})/);
+    if (m && MONTHS[m[1].slice(0, 3).toLowerCase()]) {
+      var yy2 = +m[3]; if (yy2 < 100) yy2 += 2000;
+      return yy2 + '-' + pad2(MONTHS[m[1].slice(0, 3).toLowerCase()]) + '-' + pad2(+m[2]);
+    }
+    var d = new Date(s);
+    if (!isNaN(d.getTime())) return isoUTC(d);
+    return null;
+  }
+
+  function daysBetween(a, b) {
+    var da = new Date(a + 'T00:00:00Z'), db = new Date(b + 'T00:00:00Z');
+    if (isNaN(da) || isNaN(db)) return 0;
+    return Math.round((db - da) / 86400000);
+  }
+
+  /* ---------- charges ---------- */
+  function defaultSettings() {
+    return {
+      brokeragePct: 0.05, brokerageCap: 20, brokerageMin: 2,
+      sttPct: 0.1, exchPct: 0.00325, sebiPct: 0.0001, stampPct: 0.015, gstPct: 18,
+      dpCharge: 15.93,
+      stcgRate: 20, ltcgRate: 12.5, ltcgExempt: 125000, holdDays: 365, tdsPct: 10
+    };
+  }
+
+  function computeCharges(side, qty, price, s) {
+    s = s || defaultSettings();
+    var t = Math.abs(qty * price) || 0;
+    var brokerage = 0;
+    if ((s.brokeragePct || 0) > 0) {
+      brokerage = t * s.brokeragePct / 100;
+      if (s.brokerageCap > 0) brokerage = Math.min(brokerage, s.brokerageCap);
+      if (s.brokerageMin > 0) brokerage = Math.max(brokerage, s.brokerageMin);
+    }
+    var stt = t * (s.sttPct || 0) / 100;
+    var exch = t * (s.exchPct || 0) / 100;
+    var sebi = t * (s.sebiPct || 0) / 100;
+    var stamp = side === 'BUY' ? t * (s.stampPct || 0) / 100 : 0;
+    var gst = (brokerage + exch + sebi) * (s.gstPct || 0) / 100;
+    var dp = side === 'SELL' ? (s.dpCharge || 0) : 0;
+    return {
+      brokerage: r2(brokerage), stt: r2(stt), exch: r2(exch), sebi: r2(sebi),
+      stamp: r2(stamp), gst: r2(gst), dp: r2(dp),
+      total: r2(brokerage + stt + exch + sebi + stamp + gst + dp)
+    };
+  }
+
+  /* ---------- FIFO ledger ---------- */
+  function buildLedger(trades, settings) {
+    settings = settings || defaultSettings();
+    var groups = {};
+    (trades || []).forEach(function (t) {
+      if (!t || !t.symbol) return;
+      var k = String(t.symbol).trim().toUpperCase();
+      (groups[k] = groups[k] || []).push(t);
+    });
+
+    var closed = [], openLots = {}, warnings = [];
+
+    Object.keys(groups).forEach(function (sym) {
+      var list = groups[sym].slice().sort(function (a, b) {
+        if ((a.date || '') !== (b.date || '')) return (a.date || '') < (b.date || '') ? -1 : 1;
+        return String(a.id || '').localeCompare(String(b.id || ''));
+      });
+      var lots = [];
+
+      list.forEach(function (t) {
+        var qty = Math.abs(parseNumber(t.qty));
+        var price = parseNumber(t.price);
+        if (!qty || !isFinite(price)) {
+          warnings.push(sym + ': a row was skipped (missing quantity or price).');
+          return;
+        }
+        var ch = (t.charges && t.charges.total !== undefined && t.charges.total !== null)
+          ? t.charges : computeCharges(t.side, qty, price, settings);
+        var side = String(t.side).toUpperCase() === 'SELL' ? 'SELL' : 'BUY';
+
+        if (side === 'BUY') {
+          lots.push({ date: t.date, qty: qty, price: price, cps: ch.total / qty });
+          return;
+        }
+
+        var remaining = qty;
+        var scps = ch.total / qty;
+        while (remaining > 1e-9 && lots.length) {
+          var lot = lots[0];
+          var take = Math.min(lot.qty, remaining);
+          var buyCost = take * lot.price + take * lot.cps;
+          var sellProceeds = take * price - take * scps;
+          var days = daysBetween(lot.date, t.date);
+          closed.push({
+            symbol: sym,
+            buyDate: lot.date,
+            sellDate: t.date,
+            qty: r2(take),
+            buyPrice: lot.price,
+            sellPrice: price,
+            buyCharges: r2(take * lot.cps),
+            sellCharges: r2(take * scps),
+            gross: r2(take * (price - lot.price)),
+            net: r2(sellProceeds - buyCost),
+            days: days,
+            term: days >= (settings.holdDays || 365) ? 'LTCG' : 'STCG',
+            sellId: t.id
+          });
+          lot.qty -= take;
+          remaining -= take;
+          if (lot.qty <= 1e-9) lots.shift();
+        }
+        if (remaining > 1e-9) {
+          warnings.push(sym + ': sold ' + r2(remaining) + ' more than held on ' + (t.date || '?') + ' — check for a missing buy row.');
+        }
+      });
+
+      if (lots.length) {
+        openLots[sym] = lots.map(function (l) {
+          return { date: l.date, qty: r2(l.qty), price: l.price, landed: r2(l.price + l.cps) };
+        });
+      }
+    });
+
+    closed.sort(function (a, b) { return (a.sellDate || '') < (b.sellDate || '') ? 1 : -1; });
+    return { closed: closed, openLots: openLots, warnings: warnings };
+  }
+
+  /* ---------- holdings ---------- */
+  function buildHoldings(openLots, prices) {
+    prices = prices || {};
+    return Object.keys(openLots).map(function (sym) {
+      var lots = openLots[sym];
+      var qty = sum(lots, function (l) { return l.qty; });
+      var cost = sum(lots, function (l) { return l.qty * l.landed; });
+      var avg = qty ? cost / qty : 0;
+      var ltp = parseNumber(prices[sym]);
+      var hasPrice = isFinite(ltp) && ltp > 0;
+      if (!hasPrice) ltp = avg;
+      return {
+        symbol: sym, qty: r2(qty), avgCost: r2(avg), invested: r2(cost),
+        ltp: r2(ltp), hasPrice: hasPrice,
+        value: r2(ltp * qty),
+        unrealised: r2((ltp - avg) * qty),
+        unrealisedPct: avg ? r2((ltp - avg) / avg * 100) : 0
+      };
+    }).sort(function (a, b) { return b.value - a.value; });
+  }
+
+  /* ---------- dividends ---------- */
+  function dividendTotals(dividends) {
+    var gross = 0, tds = 0;
+    (dividends || []).forEach(function (d) {
+      var g = Math.abs(parseNumber(d.perShare) * parseNumber(d.shares));
+      if (!isFinite(g)) return;
+      gross += g;
+      var t = d.tds === undefined || d.tds === null || d.tds === '' ? g * (0.1) : parseNumber(d.tds);
+      tds += isFinite(t) ? t : 0;
+    });
+    return { gross: r2(gross), tds: r2(tds), net: r2(gross - tds) };
+  }
+
+  /* ---------- summary ---------- */
+  function summarize(ledger, dividends, holdings, settings) {
+    settings = settings || defaultSettings();
+    var closed = ledger.closed || [];
+    var realised = sum(closed, function (c) { return c.net; });
+    var grossPnl = sum(closed, function (c) { return c.gross; });
+    var tradeCharges = sum(closed, function (c) { return c.buyCharges + c.sellCharges; });
+    var wins = closed.filter(function (c) { return c.net > 0; });
+    var losses = closed.filter(function (c) { return c.net < 0; });
+    var stcg = sum(closed.filter(function (c) { return c.term === 'STCG'; }), function (c) { return c.net; });
+    var ltcg = sum(closed.filter(function (c) { return c.term === 'LTCG'; }), function (c) { return c.net; });
+    var tax = Math.max(0, stcg) * (settings.stcgRate / 100) +
+      Math.max(0, ltcg - (settings.ltcgExempt || 0)) * (settings.ltcgRate / 100);
+    var unrealised = sum(holdings || [], function (h) { return h.unrealised; });
+    var invested = sum(holdings || [], function (h) { return h.invested; });
+    var div = dividendTotals(dividends);
+
+    var best = null, worst = null;
+    closed.forEach(function (c) {
+      if (!best || c.net > best.net) best = c;
+      if (!worst || c.net < worst.net) worst = c;
+    });
+
+    var turnover = sum(closed, function (c) { return c.buyPrice * c.qty + c.sellPrice * c.qty; });
+    var months = monthlySeries(closed);
+    var bm = null, wm = null;
+    months.forEach(function (m) {
+      if (!bm || m.value > bm.value) bm = m;
+      if (!wm || m.value < wm.value) wm = m;
+    });
+
+    return {
+      realised: r2(realised),
+      grossPnl: r2(grossPnl),
+      tradeCharges: r2(tradeCharges),
+      unrealised: r2(unrealised),
+      invested: r2(invested),
+      currentValue: r2(sum(holdings || [], function (h) { return h.value; })),
+      stcg: r2(stcg), ltcg: r2(ltcg), tax: r2(tax),
+      postTax: r2(realised - tax),
+      totalReturn: r2(realised + unrealised + div.net),
+      divGross: div.gross, divTds: div.tds, divNet: div.net,
+      trades: closed.length,
+      wins: wins.length, losses: losses.length,
+      winRate: closed.length ? r2(wins.length / closed.length * 100) : 0,
+      avgWin: wins.length ? r2(sum(wins, function (c) { return c.net; }) / wins.length) : 0,
+      avgLoss: losses.length ? r2(sum(losses, function (c) { return c.net; }) / losses.length) : 0,
+      avgDays: closed.length ? Math.round(sum(closed, function (c) { return c.days; }) / closed.length) : 0,
+      best: best, worst: worst,
+      turnover: r2(turnover),
+      chargePctOfTurnover: turnover ? r2(tradeCharges / turnover * 100) : 0,
+      bestMonth: bm, worstMonth: wm,
+      monthsCount: months.length
+    };
+  }
+
+  /* ---------- annualised return (XIRR) ---------- */
+  function xirr(flows) {
+    var f = (flows || []).filter(function (x) { return isFinite(x.a) && isFinite(x.t); });
+    if (f.length < 2) return null;
+    var hasPos = f.some(function (x) { return x.a > 0; });
+    var hasNeg = f.some(function (x) { return x.a < 0; });
+    if (!hasPos || !hasNeg) return null;
+    f = f.slice().sort(function (a, b) { return a.t - b.t; });
+    var t0 = f[0].t;
+    var npv = function (r) {
+      var s = 0;
+      for (var i = 0; i < f.length; i++) {
+        s += f[i].a / Math.pow(1 + r, (f[i].t - t0) / 31536000000);
+      }
+      return s;
+    };
+    var lo = -0.9999, hi = 1, flo = npv(lo), fhi = npv(hi), guard = 0;
+    while (flo * fhi > 0 && guard < 60) { hi = hi * 2 + 0.5; fhi = npv(hi); guard++; }
+    if (flo * fhi > 0) return null;
+    for (var k = 0; k < 200; k++) {
+      var mid = (lo + hi) / 2, fm = npv(mid);
+      if (Math.abs(fm) < 1e-6) return mid * 100;
+      if (flo * fm <= 0) { hi = mid; fhi = fm; } else { lo = mid; flo = fm; }
+    }
+    return (lo + hi) / 2 * 100;
+  }
+
+  function portfolioXirr(trades, dividends, holdings, today) {
+    today = today || new Date().toISOString().slice(0, 10);
+    var flows = [];
+    var ts = function (d) { return new Date((d || today) + 'T00:00:00Z').getTime(); };
+    (trades || []).forEach(function (t) {
+      var qty = Math.abs(parseNumber(t.qty)), price = parseNumber(t.price);
+      if (!qty || !isFinite(price) || !t.date) return;
+      var ch = (t.charges && t.charges.total) || 0;
+      var amt = String(t.side).toUpperCase() === 'BUY' ? -(qty * price + ch) : (qty * price - ch);
+      flows.push({ t: ts(t.date), a: amt });
+    });
+    (dividends || []).forEach(function (d) {
+      var g = Math.abs(parseNumber(d.perShare) * parseNumber(d.shares));
+      if (!isFinite(g) || !d.exDate) return;
+      var tds = (d.tds === undefined || d.tds === null || d.tds === '') ? g * 0.1 : parseNumber(d.tds);
+      flows.push({ t: ts(d.exDate), a: g - (isFinite(tds) ? tds : 0) });
+    });
+    var tv = sum(holdings || [], function (h) { return h.value; });
+    if (tv > 0) flows.push({ t: ts(today), a: tv });
+    if (!flows.length) return null;
+    return xirr(flows);
+  }
+
+  /* ---------- charges breakdown ---------- */
+  function chargeBreakdown(trades) {
+    var keys = ['brokerage', 'stt', 'exch', 'sebi', 'stamp', 'gst', 'dp'];
+    var out = { total: 0 };
+    keys.forEach(function (k) { out[k] = 0; });
+    (trades || []).forEach(function (t) {
+      var c = t.charges;
+      if (!c) return;
+      out.total += (c.total || 0);
+      keys.forEach(function (k) { out[k] += (c[k] || 0); });
+    });
+    keys.forEach(function (k) { out[k] = r2(out[k]); });
+    out.total = r2(out.total);
+    return out;
+  }
+
+  /* ---------- per-stock performance ---------- */
+  function stockStats(closed, holdings) {
+    var map = {};
+    function get(sym) {
+      if (!map[sym]) map[sym] = { symbol: sym, trades: 0, wins: 0, realised: 0, days: 0, invested: 0, proceeds: 0, openQty: 0, openValue: 0, openInvested: 0, unrealised: 0 };
+      return map[sym];
+    }
+    (closed || []).forEach(function (c) {
+      var m = get(c.symbol);
+      m.trades++;
+      if (c.net > 0) m.wins++;
+      m.realised += c.net;
+      m.days += c.days;
+      m.invested += c.buyPrice * c.qty + c.buyCharges;
+      m.proceeds += c.sellPrice * c.qty - c.sellCharges;
+    });
+    (holdings || []).forEach(function (h) {
+      var m = get(h.symbol);
+      m.openQty = h.qty;
+      m.openValue = h.value;
+      m.openInvested = h.invested;
+      m.unrealised = h.unrealised;
+    });
+    return Object.keys(map).map(function (k) {
+      var m = map[k];
+      m.realised = r2(m.realised);
+      m.unrealised = r2(m.unrealised);
+      m.total = r2(m.realised + m.unrealised);
+      m.invested = r2(m.invested);
+      m.returnPct = m.invested ? r2(m.realised / m.invested * 100) : 0;
+      m.winRate = m.trades ? r2(m.wins / m.trades * 100) : 0;
+      m.avgDays = m.trades ? Math.round(m.days / m.trades) : 0;
+      return m;
+    }).sort(function (a, b) { return b.total - a.total; });
+  }
+
+  /* ---------- monthly heatmap ---------- */
+  function heatmap(closed) {
+    var cells = {}, years = {};
+    (closed || []).forEach(function (c) {
+      var k = (c.sellDate || '').slice(0, 7);
+      if (!k) return;
+      cells[k] = (cells[k] || 0) + c.net;
+      years[k.slice(0, 4)] = 1;
+    });
+    return { cells: cells, years: Object.keys(years).sort() };
+  }
+
+  /* ---------- series ---------- */
+  function monthlySeries(closed) {
+    var map = {};
+    (closed || []).forEach(function (c) {
+      var k = (c.sellDate || '').slice(0, 7);
+      if (!k) return;
+      map[k] = (map[k] || 0) + c.net;
+    });
+    return Object.keys(map).sort().map(function (k) { return { label: k, value: r2(map[k]) }; });
+  }
+
+  function cumulativeSeries(closed) {
+    var m = monthlySeries(closed), run = 0;
+    return m.map(function (p) { run += p.value; return { label: p.label, value: r2(run) }; });
+  }
+
+  function bySymbol(closed) {
+    var map = {};
+    (closed || []).forEach(function (c) {
+      if (!map[c.symbol]) map[c.symbol] = { symbol: c.symbol, net: 0, trades: 0, wins: 0 };
+      map[c.symbol].net += c.net;
+      map[c.symbol].trades++;
+      if (c.net > 0) map[c.symbol].wins++;
+    });
+    return Object.keys(map).map(function (k) {
+      map[k].net = r2(map[k].net);
+      return map[k];
+    }).sort(function (a, b) { return b.net - a.net; });
+  }
+
+  /* ---------- CSV ---------- */
+  function parseCSV(text) {
+    text = String(text || '').replace(/^\uFEFF/, '');
+    var delim = ',';
+    var firstLine = text.split(/\r?\n/)[0] || '';
+    if (firstLine.indexOf('\t') > -1 && firstLine.indexOf(',') === -1) delim = '\t';
+    if (firstLine.indexOf(';') > -1 && firstLine.indexOf(',') === -1) delim = ';';
+
+    var rows = [], row = [], cur = '', q = false;
+    for (var i = 0; i < text.length; i++) {
+      var c = text[i];
+      if (q) {
+        if (c === '"') { if (text[i + 1] === '"') { cur += '"'; i++; } else q = false; }
+        else cur += c;
+      } else if (c === '"') q = true;
+      else if (c === delim) { row.push(cur); cur = ''; }
+      else if (c === '\n') { row.push(cur); rows.push(row); row = []; cur = ''; }
+      else if (c === '\r') { /* skip */ }
+      else cur += c;
+    }
+    row.push(cur); rows.push(row);
+    return rows.filter(function (r) { return r.some(function (c) { return String(c).trim() !== ''; }); });
+  }
+
+  /* ---------- header mapping ---------- */
+  var SYN = {
+    isin: ['isin'],
+    buyDate: ['buy date', 'purchase date', 'acquisition date', 'date of purchase', 'buy dt'],
+    sellDate: ['sell date', 'sale date', 'date of sale', 'sell dt', 'sale dt'],
+    buyPrice: ['buy price', 'purchase price', 'buy rate', 'buy avg', 'buy average', 'buy avg price', 'buy avg rate', 'avg buy price', 'acquisition price', 'acquisition rate'],
+    sellPrice: ['sell price', 'sale price', 'sell rate', 'sell avg', 'sell average', 'sell avg price', 'sell avg rate', 'avg sell price', 'sale rate'],
+    buyValue: ['buy value', 'purchase value', 'buy amount', 'buy cost', 'cost of acquisition', 'acquisition value'],
+    sellValue: ['sell value', 'sale value', 'sell amount', 'sale amount', 'sale proceeds', 'sale consideration'],
+    tradeId: ['trade id', 'tradeid', 'order id', 'orderid', 'execution id', 'order no', 'order number', 'trade no', 'contract note', 'exchange trade id', 'ref no'],
+    side: ['type', 'trade type', 'transaction type', 'buy sell', 'b s', 'side', 'order type', 'transaction', 'action'],
+    qty: ['quantity', 'qty', 'net qty', 'net quantity', 'trade qty', 'shares', 'units', 'qty sold', 'qty bought', 'quantity sold', 'quantity bought'],
+    price: ['price', 'rate', 'avg price', 'average price', 'trade price', 'execution price', 'price per share', 'avg rate', 'average rate'],
+    value: ['value', 'amount', 'trade value', 'net amount', 'turnover', 'net value', 'total value'],
+    charges: ['charges', 'total charges', 'brokerage', 'fees', 'taxes and charges', 'total tax and charges', 'other charges'],
+    date: ['date', 'trade date', 'order date', 'execution date', 'trade time', 'order execution time', 'transaction date', 'date of transaction'],
+    symbol: ['symbol', 'scrip', 'scrip name', 'stock', 'stock name', 'company', 'company name', 'instrument', 'trading symbol', 'tradingsymbol', 'security', 'security name', 'name of the company', 'script', 'script name', 'stock symbol']
+  };
+  var ORDER = ['isin', 'buyDate', 'sellDate', 'buyPrice', 'sellPrice', 'buyValue', 'sellValue', 'tradeId', 'side', 'qty', 'price', 'value', 'charges', 'date', 'symbol'];
+
+  function normHeader(h) {
+    return String(h === null || h === undefined ? '' : h).toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+  }
+
+  function mapHeaders(headerRow) {
+    var map = {};
+    (headerRow || []).forEach(function (h, i) {
+      var n = normHeader(h);
+      if (!n) return;
+      for (var k = 0; k < ORDER.length; k++) {
+        var key = ORDER[k], syns = SYN[key];
+        var hit = syns.some(function (s) { return n === s || n.indexOf(s) > -1; });
+        if (hit) { if (map[key] === undefined) map[key] = i; break; }
+      }
+    });
+    return map;
+  }
+
+  function findHeaderRow(rows) {
+    var best = { idx: -1, score: 0, map: {} };
+    var limit = Math.min((rows || []).length, 40);
+    for (var i = 0; i < limit; i++) {
+      var m = mapHeaders(rows[i]);
+      var score = Object.keys(m).length;
+      if (score > best.score) best = { idx: i, score: score, map: m };
+    }
+    return best.score >= 3 ? best : { idx: -1, score: 0, map: {} };
+  }
+
+  function shapeOf(map) {
+    var isLot = map.buyDate !== undefined && map.sellDate !== undefined && map.qty !== undefined &&
+      (map.buyPrice !== undefined || map.buyValue !== undefined) &&
+      (map.sellPrice !== undefined || map.sellValue !== undefined);
+    var isBook = map.qty !== undefined && (map.price !== undefined || map.value !== undefined) &&
+      (map.side !== undefined || map.date !== undefined);
+    return isLot ? 'lot' : (isBook ? 'book' : 'unknown');
+  }
+
+  function normSide(s) {
+    var t = String(s || '').trim().toLowerCase();
+    if (!t) return null;
+    if (/^(s|sell|sold|sale|selling|debit|dr|dr\.|out|exit)$/.test(t)) return 'SELL';
+    if (/^(b|buy|bought|purchase|credit|cr|cr\.|in|entry)$/.test(t)) return 'BUY';
+    if (/sell|sale|sold|debit|exit/.test(t)) return 'SELL';
+    if (/buy|bought|purchase|credit|entry/.test(t)) return 'BUY';
+    return null;
+  }
+
+  /* rows -> normalised trade objects */
+  function rowsToTrades(rows, header, settings) {
+    settings = settings || defaultSettings();
+    var map = header.map, shape = shapeOf(map);
+    var out = [], issues = [], seen = {};
+
+    var cell = function (r, k) {
+      if (map[k] === undefined) return '';
+      var v = r[map[k]];
+      return v === undefined || v === null ? '' : v;
+    };
+
+    for (var i = header.idx + 1; i < rows.length; i++) {
+      var r = rows[i];
+      if (!r || !r.some(function (c) { return String(c).trim() !== ''; })) continue;
+
+      var symbol = String(cell(r, 'symbol')).trim().toUpperCase().replace(/\s+/g, ' ');
+      if (!symbol) continue;
+      if (/^(total|totals|grand total|subtotal|sum|net)\b/i.test(symbol)) continue;
+      if (/^[0-9.\-]+$/.test(symbol)) continue;
+      // repeated header row (common on page 2+ of a PDF or a second sheet)
+      if (/^(symbol|scrip|scrip name|stock|stock name|company|company name|instrument|security|security name|script|script name|trading symbol|name)$/.test(normHeader(symbol))) continue;
+
+      var qty = parseNumber(cell(r, 'qty'));
+
+      if (shape === 'lot') {
+        var bd = parseDate(cell(r, 'buyDate'));
+        var sd = parseDate(cell(r, 'sellDate'));
+        var bp = parseNumber(cell(r, 'buyPrice'));
+        var sp = parseNumber(cell(r, 'sellPrice'));
+        var bv = parseNumber(cell(r, 'buyValue'));
+        var sv = parseNumber(cell(r, 'sellValue'));
+        if (!isFinite(bp) && isFinite(bv) && qty) bp = bv / qty;
+        if (!isFinite(sp) && isFinite(sv) && qty) sp = sv / qty;
+        if (!qty || !isFinite(bp) || !isFinite(sp) || !bd || !sd) {
+          issues.push('Row ' + (i + 1) + ' (' + symbol + '): missing date, quantity or price — skipped.');
+          continue;
+        }
+        var k1 = 'B|' + symbol + '|' + bd + '|' + qty + '|' + r2(bp);
+        var k2 = 'S|' + symbol + '|' + sd + '|' + qty + '|' + r2(sp);
+        if (!seen[k1]) {
+          seen[k1] = 1;
+          out.push({ symbol: symbol, side: 'BUY', qty: qty, price: r2(bp), date: bd, charges: computeCharges('BUY', qty, bp, settings), src: 'import' });
+        }
+        if (!seen[k2]) {
+          seen[k2] = 1;
+          out.push({ symbol: symbol, side: 'SELL', qty: qty, price: r2(sp), date: sd, charges: computeCharges('SELL', qty, sp, settings), src: 'import' });
+        }
+        continue;
+      }
+
+      if (shape === 'book') {
+        var side = normSide(cell(r, 'side'));
+        if (!side) side = qty < 0 ? 'SELL' : 'BUY';
+        qty = Math.abs(qty);
+        var price = parseNumber(cell(r, 'price'));
+        var val = parseNumber(cell(r, 'value'));
+        if (!isFinite(price) && isFinite(val) && qty) price = val / qty;
+        var dt = parseDate(cell(r, 'date')) || parseDate(cell(r, 'buyDate')) || parseDate(cell(r, 'sellDate'));
+        if (!qty || !isFinite(price) || !dt) {
+          issues.push('Row ' + (i + 1) + ' (' + symbol + '): missing date, quantity or price — skipped.');
+          continue;
+        }
+        var tid = String(cell(r, 'tradeId')).trim();
+        var key = tid ? 'ID|' + tid : side + '|' + symbol + '|' + dt + '|' + qty + '|' + r2(price);
+        if (seen[key]) continue;
+        seen[key] = 1;
+        out.push({ symbol: symbol, side: side, qty: qty, price: r2(price), date: dt, charges: computeCharges(side, qty, price, settings), src: 'import' });
+        continue;
+      }
+      break;
+    }
+    return { trades: out, issues: issues, shape: shape, map: map };
+  }
+
+  function parseTable(rows, settings) {
+    var header = findHeaderRow(rows);
+    if (header.idx < 0) return { trades: [], issues: ['Could not find a header row. Expected columns like Symbol, Quantity, Price, Date.'], shape: 'unknown', map: {} };
+    return rowsToTrades(rows, header, settings);
+  }
+
+  return {
+    r2: r2, sum: sum, parseNumber: parseNumber, parseDate: parseDate, daysBetween: daysBetween,
+    defaultSettings: defaultSettings, computeCharges: computeCharges,
+    buildLedger: buildLedger, buildHoldings: buildHoldings, dividendTotals: dividendTotals,
+    summarize: summarize, monthlySeries: monthlySeries, cumulativeSeries: cumulativeSeries, bySymbol: bySymbol,
+    xirr: xirr, portfolioXirr: portfolioXirr, chargeBreakdown: chargeBreakdown,
+    stockStats: stockStats, heatmap: heatmap,
+    parseCSV: parseCSV, parseTable: parseTable, findHeaderRow: findHeaderRow, mapHeaders: mapHeaders,
+    shapeOf: shapeOf, normSide: normSide, normHeader: normHeader, SYN: SYN, ORDER: ORDER
+  };
+})();
+
+if (typeof module !== 'undefined' && module.exports) module.exports = PA;
+
+</script>
+<script>
+/* ============================================================
+   Ledger — Portfolio Analyser · UI layer
+   ============================================================ */
+(function () {
+  'use strict';
+  var PA = window.PA;
+  var KEY = 'pa_ledger_v2';
+
+  var S = {
+    trades: [], dividends: [], prices: {},
+    settings: PA.defaultSettings(),
+    tab: 'dashboard',
+    f: { q: '', fy: 'all', side: 'all', view: 'tx' },
+    imp: null, pasted: ''
+  };
+
+  /* ---------------- helpers ---------------- */
+  var nf0 = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 });
+  var nf1 = new Intl.NumberFormat('en-IN', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  var nf2 = new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  function esc(s) {
+    return String(s === null || s === undefined ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+  function inr(n) { return '\u20b9' + nf0.format(Math.round(n || 0)); }
+  function inr2(n) { return '\u20b9' + nf2.format(n || 0); }
+  function money(n) { n = n || 0; return (n > 0 ? '+' : n < 0 ? '\u2212' : '') + '\u20b9' + nf0.format(Math.abs(Math.round(n))); }
+  function money2(n) { n = n || 0; return (n > 0 ? '+' : n < 0 ? '\u2212' : '') + '\u20b9' + nf2.format(Math.abs(n)); }
+  function cls(n) { return n > 0 ? 'pos' : n < 0 ? 'neg' : 'flat'; }
+  function pc(n) { n = n || 0; return (n > 0 ? '+' : n < 0 ? '\u2212' : '') + nf1.format(Math.abs(n)) + '%'; }
+  function ax(n) {
+    var a = Math.abs(n);
+    if (a >= 1e7) return (n / 1e7).toFixed(1) + 'Cr';
+    if (a >= 1e5) return (n / 1e5).toFixed(1) + 'L';
+    if (a >= 1e3) return Math.round(n / 1e3) + 'k';
+    return String(Math.round(n));
+  }
+  function fmtDate(d) {
+    if (!d) return '\u2014';
+    var p = String(d).split('-');
+    if (p.length !== 3) return esc(d);
+    var M = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return p[2] + ' ' + (M[+p[1] - 1] || '') + ' ' + p[0].slice(2);
+  }
+  function fyOf(d) {
+    if (!d || String(d).length < 7) return '';
+    var y = +String(d).slice(0, 4), m = +String(d).slice(5, 7);
+    if (m >= 4) return y + '-' + String((y + 1) % 100).padStart(2, '0');
+    return (y - 1) + '-' + String(y % 100).padStart(2, '0');
+  }
+  function fyLabel(f) { return f ? 'FY ' + f.slice(2) : '\u2014'; }
+  function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+  function today() { return new Date().toISOString().slice(0, 10); }
+  function toast(msg) {
+    var el = document.getElementById('toast');
+    el.querySelector('.msg').textContent = msg;
+    el.classList.add('on');
+    clearTimeout(el._t);
+    el._t = setTimeout(function () { el.classList.remove('on'); }, 2600);
+  }
+  function td(label, content, klass, attrs) {
+    return '<td data-label="' + esc(label) + '"' + (klass ? ' class="' + klass + '"' : '') + (attrs ? ' ' + attrs : '') + '>' + content + '</td>';
+  }
+
+  /* ---------------- persistence ---------------- */
+  function save() {
+    try {
+      localStorage.setItem(KEY, JSON.stringify({
+        trades: S.trades, dividends: S.dividends, prices: S.prices, settings: S.settings
+      }));
+    } catch (e) { toast('Could not save locally — storage may be full.'); }
+  }
+  function load() {
+    try {
+      var raw = localStorage.getItem(KEY) || localStorage.getItem('pa_ledger_v1');
+      if (!raw) return;
+      var d = JSON.parse(raw);
+      S.trades = d.trades || [];
+      S.dividends = d.dividends || [];
+      S.prices = d.prices || {};
+      S.settings = Object.assign(PA.defaultSettings(), d.settings || {});
+    } catch (e) { /* fresh start */ }
+  }
+
+  /* ---------------- charts ---------------- */
+  var PAL = ['#0d4d5a', '#a4762b', '#0a7350', '#a92a1e', '#4a6fa5', '#2f8f83', '#b5651d', '#5b6b7a', '#8a8f4a', '#7d5ba6'];
+
+  function areaChart(pts) {
+    var W = 840, H = 240, PL = 52, PR = 14, PT = 16, PB = 28;
+    var iw = W - PL - PR, ih = H - PT - PB;
+    if (!pts.length) return '<div class="note">No closed trades yet.</div>';
+    var vals = pts.map(function (p) { return p.value; });
+    var mx = Math.max.apply(null, vals.concat([0]));
+    var mn = Math.min.apply(null, vals.concat([0]));
+    if (mx === mn) { mx += 100; mn -= 100; }
+    var pad = (mx - mn) * 0.16; mx += pad; mn -= pad;
+    function X(i) { return pts.length === 1 ? PL + iw / 2 : PL + i * iw / (pts.length - 1); }
+    function Y(v) { return PT + ih * (1 - (v - mn) / (mx - mn)); }
+    var line = pts.map(function (p, i) { return (i ? 'L' : 'M') + X(i).toFixed(1) + ' ' + Y(p.value).toFixed(1); }).join(' ');
+    var y0 = Y(0);
+    var area = line + ' L' + X(pts.length - 1).toFixed(1) + ' ' + y0.toFixed(1) + ' L' + X(0).toFixed(1) + ' ' + y0.toFixed(1) + ' Z';
+    var g = '', t, ty;
+    for (t = 0; t <= 4; t++) {
+      ty = mn + (mx - mn) * t / 4;
+      g += '<line x1="' + PL + '" y1="' + Y(ty).toFixed(1) + '" x2="' + (W - PR) + '" y2="' + Y(ty).toFixed(1) + '" stroke="var(--line2)" stroke-width="1"/>';
+      g += '<text x="' + (PL - 8) + '" y="' + (Y(ty) + 3.5).toFixed(1) + '" text-anchor="end" font-size="9.5" font-family="var(--mono)" fill="var(--muted)">' + ax(ty) + '</text>';
+    }
+    var step = Math.ceil(pts.length / 6), xl = '';
+    pts.forEach(function (p, i) {
+      if (i % step !== 0 && i !== pts.length - 1) return;
+      xl += '<text x="' + X(i).toFixed(1) + '" y="' + (H - 9) + '" text-anchor="middle" font-size="9.5" font-family="var(--mono)" fill="var(--muted)">' + esc(p.label) + '</text>';
+    });
+    var dots = '';
+    if (pts.length <= 24) {
+      dots = pts.map(function (p, i) {
+        return '<circle cx="' + X(i).toFixed(1) + '" cy="' + Y(p.value).toFixed(1) + '" r="2.6" fill="var(--accent)"/>';
+      }).join('');
+    }
+    return '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Cumulative realised profit">' +
+      '<defs><linearGradient id="ag" x1="0" y1="0" x2="0" y2="1">' +
+      '<stop offset="0%" stop-color="var(--accent)" stop-opacity=".26"/>' +
+      '<stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/></linearGradient></defs>' +
+      g + '<line x1="' + PL + '" y1="' + y0.toFixed(1) + '" x2="' + (W - PR) + '" y2="' + y0.toFixed(1) + '" stroke="var(--muted)" stroke-width="1" stroke-dasharray="3 3" opacity=".5"/>' +
+      '<path d="' + area + '" fill="url(#ag)"/>' +
+      '<path d="' + line + '" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>' +
+      dots + xl + '</svg>';
+  }
+
+  function barChart(pts) {
+    var W = 840, H = 240, PL = 52, PR = 14, PT = 16, PB = 28;
+    var iw = W - PL - PR, ih = H - PT - PB;
+    if (!pts.length) return '<div class="note">No closed trades yet.</div>';
+    var mx = Math.max.apply(null, pts.map(function (p) { return Math.abs(p.value); }).concat([1]));
+    var zy = PT + ih / 2;
+    function Y(v) { return zy - (v / mx) * (ih / 2) * 0.86; }
+    var slot = iw / pts.length;
+    var bw = Math.max(3, Math.min(42, slot * 0.62));
+    var bars = '', labels = '', step = Math.ceil(pts.length / 8);
+    pts.forEach(function (p, i) {
+      var cx = PL + slot * i + slot / 2;
+      var y1 = Y(0), y2 = Y(p.value);
+      var hgt = Math.abs(y2 - y1) || 1;
+      var col = p.value >= 0 ? 'var(--profit)' : 'var(--loss)';
+      bars += '<rect x="' + (cx - bw / 2).toFixed(1) + '" y="' + Math.min(y1, y2).toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + hgt.toFixed(1) + '" rx="2" fill="' + col + '" opacity=".85"><title>' + esc(p.label) + ': ' + money(p.value) + '</title></rect>';
+      if (i % step === 0 || i === pts.length - 1) {
+        labels += '<text x="' + cx.toFixed(1) + '" y="' + (H - 9) + '" text-anchor="middle" font-size="9" font-family="var(--mono)" fill="var(--muted)">' + esc(p.label.slice(2)) + '</text>';
+      }
+    });
+    return '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Monthly realised profit">' +
+      '<line x1="' + PL + '" y1="' + zy + '" x2="' + (W - PR) + '" y2="' + zy + '" stroke="var(--line)" stroke-width="1"/>' +
+      '<text x="' + (PL - 8) + '" y="' + (PT + 4) + '" text-anchor="end" font-size="9.5" font-family="var(--mono)" fill="var(--muted)">' + ax(mx) + '</text>' +
+      '<text x="' + (PL - 8) + '" y="' + (H - PB + 4) + '" text-anchor="end" font-size="9.5" font-family="var(--mono)" fill="var(--muted)">-' + ax(mx) + '</text>' +
+      bars + labels + '</svg>';
+  }
+
+  function hBars(items) {
+    var rowH = 30, W = 840, LW = 108, RW = 100, PT = 6;
+    if (!items.length) return '<div class="note">No closed trades yet.</div>';
+    var H = items.length * rowH + PT * 2;
+    var iw = W - LW - RW;
+    var mx = Math.max.apply(null, items.map(function (i) { return Math.abs(i.value); }).concat([1]));
+    var hasNeg = items.some(function (i) { return i.value < 0; });
+    var zero = hasNeg ? LW + iw / 2 : LW;
+    var span = hasNeg ? iw / 2 : iw;
+    var out = '';
+    items.forEach(function (it, i) {
+      var y = PT + i * rowH;
+      var w = Math.max(2, Math.abs(it.value) / mx * (span - 8));
+      var x = it.value >= 0 ? zero : zero - w;
+      var col = it.value >= 0 ? 'var(--profit)' : 'var(--loss)';
+      out += '<text x="' + (LW - 10) + '" y="' + (y + rowH / 2 + 4) + '" text-anchor="end" font-size="11" font-family="var(--sans)" font-weight="700" fill="var(--ink)">' + esc(it.label) + '</text>';
+      out += '<rect x="' + x.toFixed(1) + '" y="' + (y + 7) + '" width="' + w.toFixed(1) + '" height="' + (rowH - 14) + '" rx="2.5" fill="' + col + '" opacity=".82"><title>' + esc(it.label) + ': ' + money(it.value) + '</title></rect>';
+      out += '<text x="' + (W - 2) + '" y="' + (y + rowH / 2 + 4) + '" text-anchor="end" font-size="10.5" font-family="var(--mono)" fill="var(--muted)">' + money(it.value) + '</text>';
+    });
+    if (hasNeg) out += '<line x1="' + zero + '" y1="' + PT + '" x2="' + zero + '" y2="' + (H - PT) + '" stroke="var(--line)" stroke-width="1"/>';
+    return '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Profit by stock">' + out + '</svg>';
+  }
+
+  function donut(items) {
+    var r = 76, sw = 26, C = 2 * Math.PI * r, total = 0;
+    items.forEach(function (i) { total += i.value; });
+    if (!total) return '<div class="note">No open holdings.</div>';
+    var off = 0, segs = '';
+    items.forEach(function (it) {
+      var frac = it.value / total;
+      var len = Math.max(0, frac * C - 2);
+      segs += '<circle cx="110" cy="110" r="' + r + '" fill="none" stroke="' + it.color + '" stroke-width="' + sw + '" stroke-dasharray="' + len.toFixed(2) + ' ' + (C - len).toFixed(2) + '" stroke-dashoffset="' + (-off * C).toFixed(2) + '" transform="rotate(-90 110 110)"><title>' + esc(it.label) + ': ' + inr(it.value) + '</title></circle>';
+      off += frac;
+    });
+    return '<svg viewBox="0 0 220 220" style="max-width:210px;margin:0 auto" role="img" aria-label="Allocation by stock">' + segs +
+      '<text x="110" y="106" text-anchor="middle" font-size="9.5" font-family="var(--mono)" fill="var(--muted)">VALUE</text>' +
+      '<text x="110" y="126" text-anchor="middle" font-size="16" font-family="var(--mono)" font-weight="600" fill="var(--ink)">' + ax(total) + '</text></svg>';
+  }
+
+  function heatmapCard(closed) {
+    var hm = PA.heatmap(closed);
+    if (!hm.years.length) return '';
+    var max = 0;
+    Object.keys(hm.cells).forEach(function (k) { max = Math.max(max, Math.abs(hm.cells[k])); });
+    if (!max) max = 1;
+    var M = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
+    var h = '<div class="card"><div class="card__head"><div class="card__title">Profit calendar</div><div class="card__note">month by month</div></div><div class="card__pad"><div class="heat"><div class="heat__grid">';
+    h += '<div></div>';
+    M.forEach(function (m) { h += '<div class="heat__m">' + m + '</div>'; });
+    hm.years.forEach(function (y) {
+      h += '<div class="heat__y">' + y + '</div>';
+      for (var m = 1; m <= 12; m++) {
+        var key = y + '-' + String(m).padStart(2, '0');
+        var v = hm.cells[key];
+        var bg = 'var(--surface3)';
+        var title = y + ' ' + M[m - 1] + ': nothing closed';
+        if (v !== undefined) {
+          var inten = Math.min(1, Math.abs(v) / max);
+          var alpha = 0.14 + inten * 0.72;
+          bg = v >= 0 ? 'rgba(10,115,80,' + alpha.toFixed(2) + ')' : 'rgba(169,42,30,' + alpha.toFixed(2) + ')';
+          title = y + ' ' + M[m - 1] + ': ' + (v > 0 ? '+' : '\u2212') + '\u20b9' + nf0.format(Math.round(Math.abs(v)));
+        }
+        h += '<div class="heat__c" style="background:' + bg + '" title="' + esc(title) + '"></div>';
+      }
+    });
+    h += '</div></div></div></div>';
+    return h;
+  }
+
+  /* ---------------- data ---------------- */
+  function pipeline() {
+    var led = PA.buildLedger(S.trades, S.settings);
+    var hold = PA.buildHoldings(led.openLots, S.prices);
+    var sum = PA.summarize(led, S.dividends, hold, S.settings);
+    var xirr = PA.portfolioXirr(S.trades, S.dividends, hold, today());
+    return { led: led, hold: hold, sum: sum, xirr: xirr };
+  }
+  function filteredTrades() {
+    return S.trades.slice().sort(function (a, b) { return (a.date || '') < (b.date || '') ? 1 : -1; })
+      .filter(function (t) {
+        if (S.f.fy !== 'all' && fyOf(t.date) !== S.f.fy) return false;
+        if (S.f.side !== 'all' && t.side !== S.f.side) return false;
+        if (S.f.q && (t.symbol || '').toLowerCase().indexOf(S.f.q.toLowerCase()) < 0) return false;
+        return true;
+      });
+  }
+  function filteredClosed(closed) {
+    return closed.filter(function (c) {
+      if (S.f.fy !== 'all' && fyOf(c.sellDate) !== S.f.fy) return false;
+      if (S.f.q && (c.symbol || '').toLowerCase().indexOf(S.f.q.toLowerCase()) < 0) return false;
+      return true;
+    });
+  }
+  function fyOptions() {
+    var set = {};
+    S.trades.forEach(function (t) { var f = fyOf(t.date); if (f) set[f] = 1; });
+    S.dividends.forEach(function (d) { var f = fyOf(d.exDate); if (f) set[f] = 1; });
+    return Object.keys(set).sort().reverse();
+  }
+  function isDup(t) {
+    return S.trades.some(function (x) {
+      return x.side === t.side && x.symbol === t.symbol && x.date === t.date &&
+        Math.abs((x.qty || 0) - t.qty) < 1e-6 && Math.abs((x.price || 0) - t.price) < 1e-6;
+    });
+  }
+
+  /* ---------------- views ---------------- */
+  function viewEmpty() {
+    return '<div class="card" style="margin-top:28px"><div class="empty">' +
+      '<div class="eyebrow" style="justify-content:center;margin-bottom:12px">Start here</div>' +
+      '<h2>Your ledger is empty</h2>' +
+      '<p>Load a sample portfolio to see everything working, or bring in your broker\u2019s Excel, CSV or PDF report.</p>' +
+      '<div class="row">' +
+      '<button class="btn btn--primary" data-act="demo">Load demo</button>' +
+      '<button class="btn" data-act="tab" data-tab="import">Import a file</button>' +
+      '<button class="btn btn--ghost" data-act="addTrade">Add manually</button></div>' +
+      '</div></div>';
+  }
+
+  function viewDashboard() {
+    if (!S.trades.length && !S.dividends.length) return viewEmpty();
+    var p = pipeline(), s = p.sum, led = p.led, hold = p.hold;
+    var cum = PA.cumulativeSeries(led.closed);
+    var mon = PA.monthlySeries(led.closed);
+    var bys = PA.bySymbol(led.closed);
+    var top = bys.slice(0, 7).map(function (x) { return { label: x.symbol, value: x.net }; });
+    var alloc = hold.slice(0, 9).map(function (h, i) { return { label: h.symbol, value: h.value, color: PAL[i % PAL.length] }; });
+    var chg = PA.chargeBreakdown(S.trades);
+    var stats = PA.stockStats(led.closed, hold);
+
+    var h = '<div class="sec-head"><div class="sec-head__row"><div><div class="eyebrow">Overview</div>' +
+      '<div class="sec-title">Portfolio performance</div>' +
+      '<div class="sec-sub">' + S.trades.length + ' transactions \u00b7 ' + led.closed.length + ' matched \u00b7 ' + hold.length + ' open \u00b7 FIFO</div></div>' +
+      '<div class="row"><button class="btn btn--sm btn--ghost" data-act="clearAll">Clear all data</button></div></div></div>';
+
+    if (led.warnings.length) {
+      h += '<div class="note note--warn" style="margin-bottom:12px"><b>' + led.warnings.length + ' data check' + (led.warnings.length > 1 ? 's' : '') + ':</b> ' +
+        esc(led.warnings.slice(0, 3).join(' ')) + (led.warnings.length > 3 ? ' \u2026' : '') + '</div>';
+    }
+
+    h += '<div class="hero"><div class="hero__label">Realised profit \u00b7 net of charges</div>' +
+      '<div class="hero__val ' + cls(s.realised) + '">' + money(s.realised) + '</div>' +
+      '<div class="hero__meta"><span>' + money(s.grossPnl) + ' gross</span><span>' + inr(s.tradeCharges) + ' charges</span>' +
+      '<span class="' + cls(s.postTax) + '"><b>' + money(s.postTax) + '</b> after tax</span></div></div>';
+
+    h += '<div class="kpis">' +
+      kpi('Unrealised', money(s.unrealised), cls(s.unrealised), hold.length + ' open \u00b7 ' + inr(s.invested) + ' in') +
+      kpi('Total return', money(s.totalReturn), cls(s.totalReturn), 'incl. dividends') +
+      kpi('Dividends', inr(s.divNet), s.divNet > 0 ? 'pos' : 'flat', 'net of ' + inr(s.divTds) + ' TDS') +
+      kpi('Est. tax', inr(s.tax), s.tax > 0 ? 'neg' : 'flat', 'STCG + LTCG') +
+      '</div>';
+
+    h += '<div class="card"><div class="card__pad" style="padding-top:12px;padding-bottom:12px">' +
+      line('Annualised return (XIRR)', p.xirr === null ? '\u2014' : pc(p.xirr), p.xirr === null ? '' : cls(p.xirr)) +
+      line('Win rate', s.wins + ' of ' + s.trades + ' \u00b7 ' + nf1.format(s.winRate) + '%') +
+      line('Average holding period', s.avgDays + ' days') +
+      line('Charges as % of turnover', nf2.format(s.chargePctOfTurnover) + '%') +
+      '</div></div>';
+
+    h += '<div class="sec-gap"></div>';
+
+    h += '<div class="chart-grid chart-grid--2"><div class="card"><div class="card__head"><div class="card__title">Cumulative realised profit</div><div class="card__note">by sell month</div></div><div class="chart-body">' + areaChart(cum) + '</div></div>' +
+      '<div class="card"><div class="card__head"><div class="card__title">Monthly P&amp;L</div><div class="card__note">' + mon.length + ' months</div></div><div class="chart-body">' + barChart(mon) + '</div></div></div>';
+
+    h += '<div class="chart-grid chart-grid--even"><div class="card"><div class="card__head"><div class="card__title">Profit by stock</div><div class="card__note">net</div></div><div class="chart-body">' + hBars(top) + '</div></div>' +
+      '<div class="card"><div class="card__head"><div class="card__title">Where the money sits</div><div class="card__note">open</div></div><div class="chart-body">' + donut(alloc) +
+      '<div class="legend">' + alloc.map(function (a) {
+        return '<span><i style="background:' + a.color + '"></i>' + esc(a.label) + ' ' + Math.round(a.value / (s.currentValue || 1) * 100) + '%</span>';
+      }).join('') + '</div></div></div></div>';
+
+    h += heatmapCard(led.closed);
+
+    if (stats.length) {
+      h += '<div class="card"><div class="card__head"><div class="card__title">Stock by stock</div><div class="card__note">realised + open</div></div>' +
+        '<div class="tbl-wrap tbl"><table><thead><tr><th>Stock</th><th class="num">Trades</th><th class="num">Win %</th><th class="num">Realised</th><th class="num">Open P&amp;L</th><th class="num">Total</th></tr></thead><tbody>';
+      stats.forEach(function (x) {
+        h += '<tr data-search="' + esc(x.symbol.toLowerCase()) + '">' +
+          td('', '<span class="sym">' + esc(x.symbol) + '</span>' + (x.openQty ? ' <span class="pill">' + nf0.format(x.openQty) + ' held</span>' : ''), 'cell-main') +
+          td('Trades', nf0.format(x.trades), 'num') +
+          td('Win %', x.trades ? nf0.format(x.winRate) + '%' : '\u2014', 'num') +
+          td('Realised', money(x.realised), 'num ' + cls(x.realised)) +
+          td('Open P&L', x.openQty ? money(x.unrealised) : '\u2014', 'num ' + (x.openQty ? cls(x.unrealised) : 'muted')) +
+          td('Total', '<b>' + money(x.total) + '</b>', 'num ' + cls(x.total)) +
+          '</tr>';
+      });
+      h += '</tbody></table></div></div>';
+    }
+
+    h += '<div class="chart-grid chart-grid--even">' +
+      '<div class="card"><div class="card__head"><div class="card__title">Tax position</div><div class="card__note">estimate</div></div><div class="card__pad" style="padding-top:10px">' +
+      line('Short-term gains', money(s.stcg), cls(s.stcg)) +
+      line('Long-term gains', money(s.ltcg), cls(s.ltcg)) +
+      line('STCG @ ' + S.settings.stcgRate + '%', inr(Math.max(0, s.stcg) * S.settings.stcgRate / 100)) +
+      line('LTCG @ ' + S.settings.ltcgRate + '%', inr(Math.max(0, s.ltcg - S.settings.ltcgExempt) * S.settings.ltcgRate / 100)) +
+      line('Total estimate', inr(s.tax), 'neg') +
+      '<div class="hint" style="margin-top:9px">After the \u20b9' + ax(S.settings.ltcgExempt) + ' LTCG exemption. Ignores loss carry-forward and other income.</div></div></div>' +
+      '<div class="card"><div class="card__head"><div class="card__title">Where charges went</div><div class="card__note">all trades</div></div><div class="card__pad" style="padding-top:10px">' +
+      line('Brokerage', inr2(chg.brokerage)) +
+      line('STT', inr2(chg.stt)) +
+      line('Stamp duty', inr2(chg.stamp)) +
+      line('GST', inr2(chg.gst)) +
+      line('Exchange + SEBI', inr2(chg.exch + chg.sebi)) +
+      line('DP charges', inr2(chg.dp)) +
+      line('Total', inr2(chg.total), 'neg') + '</div></div></div>';
+
+    return h;
+  }
+
+  function kpi(label, val, klass, sub) {
+    return '<div class="kpi"><div class="kpi__label">' + esc(label) + '</div>' +
+      '<div class="kpi__val ' + klass + '">' + val + '</div>' +
+      '<div class="kpi__sub">' + esc(sub || '') + '</div></div>';
+  }
+  function line(a, b, klass) {
+    return '<div class="stat-line"><span class="muted">' + esc(a) + '</span><b class="' + (klass || '') + '">' + b + '</b></div>';
+  }
+
+  function viewTrades() {
+    var p = pipeline(), fy = fyOptions(), view = S.f.view;
+    var h = '<div class="sec-head"><div class="sec-head__row"><div><div class="eyebrow">Ledger</div><div class="sec-title">Transactions</div>' +
+      '<div class="sec-sub">Edit any row and every number recalculates.</div></div>' +
+      '<div class="row"><button class="btn btn--sm" data-act="addTrade">Add trade</button>' +
+      '<button class="btn btn--sm btn--ghost" data-act="clearAll">Clear all</button></div></div></div>';
+
+    h += '<div class="card"><div class="toolbar">' +
+      '<input type="search" id="q" placeholder="Search stock\u2026" value="' + esc(S.f.q) + '">' +
+      '<div class="chips">' +
+      '<button class="chip' + (view === 'tx' ? ' is-on' : '') + '" data-act="viewTx">Transactions</button>' +
+      '<button class="chip' + (view === 'closed' ? ' is-on' : '') + '" data-act="viewClosed">Realised</button>' +
+      '</div>' +
+      '<select id="fFy"><option value="all">All years</option>' + fy.map(function (f) {
+        return '<option value="' + f + '"' + (S.f.fy === f ? ' selected' : '') + '>' + fyLabel(f) + '</option>';
+      }).join('') + '</select>' +
+      '</div>';
+
+    if (view === 'tx') {
+      var rows = filteredTrades();
+      h += '<div class="tbl-wrap tbl"><table><thead><tr><th>Date</th><th>Stock</th><th>Side</th><th class="num">Qty</th><th class="num">Price</th><th class="num">Charges</th><th class="num">Value</th><th></th></tr></thead><tbody>';
+      if (!rows.length) h += '<tr><td colspan="8" class="muted" style="padding:26px;text-align:center">No transactions match.</td></tr>';
+      rows.forEach(function (t) {
+        var ch = (t.charges && t.charges.total) || 0;
+        h += '<tr data-search="' + esc((t.symbol + ' ' + t.date + ' ' + t.side).toLowerCase()) + '">' +
+          td('', '<span class="sym">' + esc(t.symbol) + '</span> <span class="badge ' + (t.side === 'BUY' ? 'badge--buy' : 'badge--sell') + '">' + t.side + '</span>', 'cell-main') +
+          td('Date', fmtDate(t.date), 'num') +
+          td('Quantity', nf0.format(t.qty), 'num') +
+          td('Price', inr2(t.price), 'num') +
+          td('Charges', inr2(ch), 'num muted') +
+          td('Value', inr(t.qty * t.price), 'num') +
+          td('', '<button class="btn btn--sm btn--ghost" data-act="editTrade" data-id="' + esc(t.id) + '">Edit</button>' +
+            '<button class="btn btn--sm btn--ghost" data-act="delTrade" data-id="' + esc(t.id) + '">\u00d7</button>', 'num cell-act') +
+          '</tr>';
+      });
+      h += '</tbody></table></div>';
+    } else {
+      var cl = filteredClosed(p.led.closed);
+      h += '<div class="tbl-wrap tbl"><table><thead><tr><th>Sell date</th><th>Stock</th><th class="num">Qty</th><th class="num">Bought</th><th class="num">Sold</th><th class="num">Gross</th><th class="num">Net</th><th class="num">Days</th><th>Term</th></tr></thead><tbody>';
+      if (!cl.length) h += '<tr><td colspan="9" class="muted" style="padding:26px;text-align:center">No realised trades match.</td></tr>';
+      cl.forEach(function (c) {
+        var pctv = c.buyPrice ? (c.sellPrice - c.buyPrice) / c.buyPrice * 100 : 0;
+        h += '<tr data-search="' + esc((c.symbol + ' ' + c.sellDate).toLowerCase()) + '">' +
+          td('', '<span class="sym">' + esc(c.symbol) + '</span> <span class="badge ' + (c.term === 'LTCG' ? 'badge--lt' : 'badge--st') + '">' + c.term + '</span>', 'cell-main') +
+          td('Sold on', fmtDate(c.sellDate), 'num') +
+          td('Quantity', nf0.format(c.qty), 'num') +
+          td('Bought at', inr2(c.buyPrice) + ' <span class="tiny muted">' + fmtDate(c.buyDate) + '</span>', 'num') +
+          td('Sold at', inr2(c.sellPrice), 'num') +
+          td('Gross', money2(c.gross), 'num ' + cls(c.gross)) +
+          td('Net P&L', '<b>' + money2(c.net) + '</b> <span class="tiny">' + pc(pctv) + '</span>', 'num ' + cls(c.net)) +
+          td('Held', c.days + 'd', 'num muted') +
+          td('', '', 'num') +
+          '</tr>';
+      });
+      h += '</tbody></table></div>';
+    }
+    return h + '</div>';
+  }
+
+  function viewHoldings() {
+    var p = pipeline(), hold = p.hold;
+    var totalVal = 0, totalInv = 0;
+    hold.forEach(function (x) { totalVal += x.value; totalInv += x.invested; });
+    var h = '<div class="sec-head"><div class="sec-head__row"><div><div class="eyebrow">Open positions</div><div class="sec-title">Holdings</div>' +
+      '<div class="sec-sub">FIFO cost includes charges. Type a price to see live profit.</div></div></div></div>';
+
+    if (!hold.length) {
+      return h + '<div class="card"><div class="empty"><h2>No open positions</h2><p>Everything is sold. Add a buy to start tracking again.</p>' +
+        '<button class="btn btn--primary" data-act="addTrade">Add a trade</button></div></div>';
+    }
+
+    h += '<div class="kpis" style="grid-template-columns:repeat(2,1fr)">' +
+      kpi('Invested', inr(totalInv), 'flat', hold.length + ' stocks') +
+      kpi('Current value', inr(totalVal), 'flat', 'at your prices') + '</div>';
+
+    h += '<div class="card"><div class="tbl-wrap tbl"><table><thead><tr><th>Stock</th><th class="num">Qty</th><th class="num">Avg cost</th><th class="num">Price</th><th class="num">Invested</th><th class="num">Value</th><th class="num">P&amp;L</th><th class="num">%</th></tr></thead><tbody>';
+    hold.forEach(function (x) {
+      h += '<tr>' +
+        td('', '<span class="sym">' + esc(x.symbol) + '</span>', 'cell-main') +
+        td('Quantity', nf0.format(x.qty), 'num') +
+        td('Avg landed cost', inr2(x.avgCost), 'num') +
+        td('Current price', '<input data-price="' + esc(x.symbol) + '" type="number" inputmode="decimal" step="0.05" value="' + (x.hasPrice ? x.ltp : '') + '" placeholder="' + x.avgCost.toFixed(2) + '" style="width:94px;text-align:right;padding:6px 8px;min-height:34px">', 'num') +
+        td('Invested', inr(x.invested), 'num muted') +
+        td('Value', inr(x.value), 'num') +
+        td('P&L', '<b>' + money(x.unrealised) + '</b>', 'num ' + cls(x.unrealised)) +
+        td('%', x.hasPrice ? pc(x.unrealisedPct) : '\u2014', 'num ' + cls(x.unrealised)) +
+        '</tr>';
+    });
+    h += '</tbody><tfoot><tr>' +
+      '<td data-label="Total">Total</td><td></td><td></td><td></td>' +
+      '<td data-label="Invested" class="num">' + inr(totalInv) + '</td>' +
+      '<td data-label="Value" class="num">' + inr(totalVal) + '</td>' +
+      '<td data-label="P&L" class="num ' + cls(totalVal - totalInv) + '">' + money(totalVal - totalInv) + '</td>' +
+      '<td data-label="%" class="num ' + cls(totalVal - totalInv) + '">' + pc(totalInv ? (totalVal - totalInv) / totalInv * 100 : 0) + '</td></tr></tfoot></table></div></div>';
+
+    h += '<div class="note" style="margin-top:12px">Prices you type are stored on this device only. Nothing is fetched from the internet.</div>';
+    return h;
+  }
+
+  function viewDividends() {
+    var p = pipeline(), s = p.sum;
+    var h = '<div class="sec-head"><div class="sec-head__row"><div><div class="eyebrow">Income</div><div class="sec-title">Dividends</div>' +
+      '<div class="sec-sub">Taxed as income, so they stay separate from trading profit.</div></div></div></div>';
+
+    h += '<div class="kpis" style="grid-template-columns:repeat(3,1fr)">' +
+      kpi('Gross', inr(s.divGross), s.divGross > 0 ? 'pos' : 'flat', 'before TDS') +
+      kpi('TDS', inr(s.divTds), 'flat', 'usually 10%') +
+      kpi('Net', inr(s.divNet), s.divNet > 0 ? 'pos' : 'flat', 'credited') + '</div>';
+
+    h += '<div class="card"><div class="card__head"><div class="card__title">Add a dividend</div></div><div class="card__pad">' +
+      '<form id="divForm"><div class="grid-form">' +
+      '<div class="field"><label>Stock</label><input name="symbol" required placeholder="ITC" autocomplete="off"></div>' +
+      '<div class="field"><label>Ex-date</label><input name="exDate" type="date" required></div>' +
+      '<div class="field"><label>\u20b9 per share</label><input name="perShare" type="number" inputmode="decimal" step="0.01" required placeholder="7.50"></div>' +
+      '<div class="field"><label>Shares held</label><input name="shares" type="number" inputmode="numeric" step="1" required placeholder="200"></div>' +
+      '<div class="field"><label>TDS (blank = 10%)</label><input name="tds" type="number" inputmode="decimal" step="0.01" placeholder="auto"></div>' +
+      '</div><div style="margin-top:12px"><button class="btn btn--primary btn--block" type="submit">Add dividend</button></div></form></div></div>';
+
+    h += '<div class="card"><div class="tbl-wrap tbl"><table><thead><tr><th>Ex-date</th><th>Stock</th><th class="num">Per share</th><th class="num">Shares</th><th class="num">Gross</th><th class="num">Net</th><th></th></tr></thead><tbody>';
+    if (!S.dividends.length) h += '<tr><td colspan="7" class="muted" style="padding:26px;text-align:center">No dividends yet.</td></tr>';
+    S.dividends.slice().sort(function (a, b) { return (a.exDate || '') < (b.exDate || '') ? 1 : -1; }).forEach(function (d) {
+      var g = (d.perShare || 0) * (d.shares || 0);
+      var t = (d.tds === '' || d.tds === null || d.tds === undefined) ? g * 0.1 : d.tds;
+      h += '<tr>' +
+        td('', '<span class="sym">' + esc(d.symbol) + '</span>', 'cell-main') +
+        td('Ex-date', fmtDate(d.exDate), 'num') +
+        td('Per share', inr2(d.perShare), 'num') +
+        td('Shares', nf0.format(d.shares), 'num') +
+        td('Gross', inr(g), 'num') +
+        td('Net', inr(g - t), 'num pos') +
+        td('', '<button class="btn btn--sm btn--ghost" data-act="delDiv" data-id="' + esc(d.id) + '">\u00d7</button>', 'num cell-act') +
+        '</tr>';
+    });
+    return h + '</tbody></table></div></div>';
+  }
+
+  function viewImport() {
+    var h = '<div class="sec-head"><div class="sec-head__row"><div><div class="eyebrow">Ingest</div><div class="sec-title">Import</div>' +
+      '<div class="sec-sub">Excel, CSV or PDF. Works offline \u2014 nothing leaves this device.</div></div></div></div>';
+
+    h += '<div class="card"><div class="card__pad">' +
+      '<div class="drop" id="drop">' +
+      '<svg class="drop__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15.5V4M8.2 7.8 12 4l3.8 3.8"/><path d="M4.5 15v3.5A1.5 1.5 0 0 0 6 20h12a1.5 1.5 0 0 0 1.5-1.5V15"/></svg>' +
+      '<h3>Drop your report</h3><p>or tap to choose \u00b7 .xlsx \u00b7 .csv \u00b7 .pdf</p>' +
+      '<input type="file" id="file" accept=".csv,.txt,.xlsx,.xls,.pdf" style="display:none"></div>' +
+      '<div id="impStatus" style="margin-top:12px"></div>' +
+      '</div></div>';
+
+    h += '<div class="card"><div class="card__head"><div class="card__title">PDF not reading right?</div><div class="card__note">fallback</div></div><div class="card__pad">' +
+      '<div class="hint" style="margin-bottom:9px">Open the PDF, select all the text, copy it, and paste here. This always works, even for scanned reports your phone can read.</div>' +
+      '<textarea id="pasteBox" rows="5" placeholder="Paste the table text here\u2026">' + esc(S.pasted) + '</textarea>' +
+      '<div class="row" style="margin-top:10px"><button class="btn btn--sm" data-act="parsePaste">Read pasted text</button></div></div></div>';
+
+    h += '<div class="card"><div class="card__head"><div class="card__title">What it understands</div></div><div class="card__pad">' +
+      '<div class="stat-line"><span class="muted">Tradebook</span><b>Symbol, Date, Buy/Sell, Qty, Price</b></div>' +
+      '<div class="stat-line"><span class="muted">P&amp;L statement</span><b>Symbol, Qty, Buy &amp; Sell date + price</b></div>' +
+      '<div class="stat-line"><span class="muted">Also read</span><b>ISIN, Trade ID, Value, Charges</b></div>' +
+      '<div class="hint" style="margin-top:9px">A P&amp;L sheet (one row per closed lot) is split into a buy and a sell so it runs through the same FIFO engine.</div></div></div>';
+
+    if (S.imp) h += importPreview();
+    return h;
+  }
+
+  function importPreview() {
+    var im = S.imp;
+    var fresh = im.trades.filter(function (t) { return !isDup(t); });
+    var h = '<div class="card" style="margin-top:12px"><div class="card__head"><div class="card__title">Preview</div>' +
+      '<div class="card__note">' + im.trades.length + ' read \u00b7 ' + (im.trades.length - fresh.length) + ' duplicate</div></div><div class="card__pad">';
+
+    if (im.fileName) h += '<div class="hint" style="margin-bottom:10px">' + esc(im.fileName) + '</div>';
+    if (im.shape === 'lot') h += '<div class="note note--ok" style="margin-bottom:10px">Detected a <b>P&amp;L statement</b> \u2014 each row becomes a buy and a sell on the dates shown.</div>';
+    if (im.shape === 'book') h += '<div class="note note--ok" style="margin-bottom:10px">Detected a <b>tradebook</b> \u2014 matched FIFO against your buys.</div>';
+    if (im.issues.length) h += '<div class="note note--bad" style="margin-bottom:10px">' + esc(im.issues.slice(0, 4).join(' ')) + (im.issues.length > 4 ? ' \u2026' : '') + '</div>';
+
+    h += '<div class="tbl-wrap" style="border:1px solid var(--line2);border-radius:12px;max-height:300px;overflow:auto"><table><thead><tr><th>Stock</th><th>Side</th><th class="num">Qty</th><th class="num">Price</th><th>Date</th></tr></thead><tbody>';
+    im.trades.slice(0, 40).forEach(function (t) {
+      h += '<tr><td class="sym">' + esc(t.symbol) + '</td><td><span class="badge ' + (t.side === 'BUY' ? 'badge--buy' : 'badge--sell') + '">' + t.side + '</span></td>' +
+        '<td class="num">' + nf0.format(t.qty) + '</td><td class="num">' + inr2(t.price) + '</td><td class="num">' + fmtDate(t.date) + '</td></tr>';
+    });
+    h += '</tbody></table></div>';
+    if (im.trades.length > 40) h += '<div class="hint" style="margin-top:7px">First 40 of ' + im.trades.length + '.</div>';
+
+    h += '<div class="row" style="margin-top:13px">' +
+      '<button class="btn btn--primary" data-act="confirmImport"' + (fresh.length ? '' : ' disabled') + '>Import ' + fresh.length + '</button>' +
+      '<button class="btn btn--ghost" data-act="cancelImport">Cancel</button></div></div></div>';
+    return h;
+  }
+
+  function viewSettings() {
+    var st = S.settings;
+    var h = '<div class="sec-head"><div class="sec-head__row"><div><div class="eyebrow">Configuration</div><div class="sec-title">Settings</div>' +
+      '<div class="sec-sub">Charge and tax rules drive every number. Defaults follow a Groww-style delivery tariff.</div></div></div></div>';
+
+    h += '<form id="setForm">';
+    h += '<div class="card"><div class="card__head"><div class="card__title">Charges per order</div><div class="card__note">new trades</div></div><div class="card__pad"><div class="grid-form">' +
+      field('brokeragePct', 'Brokerage %', st.brokeragePct) +
+      field('brokerageCap', 'Brokerage cap \u20b9', st.brokerageCap) +
+      field('brokerageMin', 'Brokerage min \u20b9', st.brokerageMin) +
+      field('sttPct', 'STT %', st.sttPct) +
+      field('exchPct', 'Exchange %', st.exchPct) +
+      field('sebiPct', 'SEBI %', st.sebiPct) +
+      field('stampPct', 'Stamp % (buy)', st.stampPct) +
+      field('gstPct', 'GST %', st.gstPct) +
+      field('dpCharge', 'DP \u20b9 (sell)', st.dpCharge) +
+      '</div><div class="hint" style="margin-top:10px">Set brokerage to 0 for a zero-brokerage plan.</div></div></div>';
+
+    h += '<div class="card"><div class="card__head"><div class="card__title">Tax rules</div><div class="card__note">for the estimate</div></div><div class="card__pad"><div class="grid-form">' +
+      field('stcgRate', 'STCG %', st.stcgRate) +
+      field('ltcgRate', 'LTCG %', st.ltcgRate) +
+      field('ltcgExempt', 'LTCG exemption \u20b9', st.ltcgExempt) +
+      field('holdDays', 'Long-term after (days)', st.holdDays) +
+      field('tdsPct', 'Dividend TDS %', st.tdsPct) +
+      '</div></div></div>';
+
+    h += '<div class="row" style="margin:12px 0 16px"><button class="btn btn--primary" type="submit">Save settings</button>' +
+      '<button class="btn" type="button" data-act="recalc">Recalculate charges</button></div></form>';
+
+    h += '<div class="card"><div class="card__head"><div class="card__title">Your data</div><div class="card__note">on this device</div></div><div class="card__pad">' +
+      '<div class="row"><button class="btn btn--sm" data-act="backup">Backup .json</button>' +
+      '<button class="btn btn--sm" data-act="restoreClick">Restore</button>' +
+      '<button class="btn btn--sm" data-act="exportCsv">Export .csv</button>' +
+      '<button class="btn btn--sm btn--danger" data-act="clearAll">Delete all</button></div>' +
+      '<input type="file" id="restoreFile" accept=".json,application/json" style="display:none">' +
+      '<div class="hint" style="margin-top:10px">' + S.trades.length + ' transactions \u00b7 ' + S.dividends.length + ' dividends. Clearing browser data wipes this, so keep a backup.</div>' +
+      '</div></div>';
+
+    h += '<div class="card"><div class="card__head"><div class="card__title">Install on your phone</div></div><div class="card__pad">' +
+      '<div class="hint">iPhone: tap Share, then <b>Add to Home Screen</b>. Android: menu, then <b>Install app</b> or <b>Add to Home screen</b>. It then opens full screen and works with no internet at all.</div>' +
+      '</div></div>';
+    return h;
+  }
+  function field(id, label, val) {
+    return '<div class="field"><label>' + esc(label) + '</label><input id="s_' + id + '" type="number" inputmode="decimal" step="any" value="' + val + '"></div>';
+  }
+
+  /* ---------------- render ---------------- */
+  function render() {
+    var v = document.getElementById('view');
+    var html = '';
+    if (S.tab === 'dashboard') html = viewDashboard();
+    else if (S.tab === 'trades') html = viewTrades();
+    else if (S.tab === 'holdings') html = viewHoldings();
+    else if (S.tab === 'dividends') html = viewDividends();
+    else if (S.tab === 'import') html = viewImport();
+    else html = viewSettings();
+    v.innerHTML = html;
+    document.querySelectorAll('.tab').forEach(function (b) {
+      b.classList.toggle('is-on', b.dataset.tab === S.tab);
+    });
+    if (S.tab === 'import') wireImport();
+  }
+
+  /* ---------------- modal ---------------- */
+  function closeModal() { document.getElementById('modalHost').innerHTML = ''; }
+
+  function tradeModal(id) {
+    var t = id ? S.trades.filter(function (x) { return x.id === id; })[0] : null;
+    var sym = t ? t.symbol : '', side = t ? t.side : 'BUY';
+    var qty = t ? t.qty : '', price = t ? t.price : '', date = t ? t.date : today();
+    var chg = t && t.charges ? t.charges.total : '';
+
+    var html = '<div class="modal" data-act="closeModalBg"><div class="modal__box" onclick="event.stopPropagation()">' +
+      '<div class="modal__grab"></div>' +
+      '<div class="modal__head"><div><div class="eyebrow">' + (t ? 'Edit' : 'New') + ' transaction</div>' +
+      '<div class="sec-title" style="font-size:22px;margin-top:3px">' + (t ? esc(t.symbol) : 'Add a trade') + '</div></div>' +
+      '<button class="btn btn--ghost btn--sm" data-act="closeModal">Close</button></div>' +
+      '<div class="modal__body"><form id="tradeForm"><div class="grid-form">' +
+      '<div class="field" style="grid-column:1/-1"><label>Stock symbol</label><input name="symbol" required value="' + esc(sym) + '" placeholder="RELIANCE" autocomplete="off" autocapitalize="characters"></div>' +
+      '<div class="field"><label>Side</label><select name="side"><option value="BUY"' + (side === 'BUY' ? ' selected' : '') + '>Buy</option><option value="SELL"' + (side === 'SELL' ? ' selected' : '') + '>Sell</option></select></div>' +
+      '<div class="field"><label>Date</label><input name="date" type="date" required value="' + esc(date) + '"></div>' +
+      '<div class="field"><label>Quantity</label><input name="qty" type="number" inputmode="decimal" step="any" min="0" required value="' + qty + '"></div>' +
+      '<div class="field"><label>Price per share</label><input name="price" type="number" inputmode="decimal" step="any" min="0" required value="' + price + '"></div>' +
+      '<div class="field" style="grid-column:1/-1"><label>Total charges (auto)</label><input name="charges" type="number" inputmode="decimal" step="any" value="' + (chg === '' ? '' : chg) + '" placeholder="auto"></div>' +
+      '</div><div class="hint" id="chgPreview" style="margin-top:9px"></div>' +
+      '<div class="row" style="margin-top:14px"><button class="btn btn--primary" type="submit" style="flex:1">' + (t ? 'Save' : 'Add') + '</button>' +
+      '<button class="btn btn--ghost" type="button" data-act="closeModal">Cancel</button></div></form></div></div></div>';
+
+    document.getElementById('modalHost').innerHTML = html;
+    var form = document.getElementById('tradeForm');
+    var fv = function (n) { return form.elements[n]; };
+
+    function refresh() {
+      var q = parseFloat(fv('qty').value), pr = parseFloat(fv('price').value);
+      var sd = fv('side').value;
+      var box = document.getElementById('chgPreview');
+      if (!isFinite(q) || !isFinite(pr) || q <= 0) { box.textContent = ''; return; }
+      var c = PA.computeCharges(sd, q, pr, S.settings);
+      box.innerHTML = 'Auto charges: <b>' + inr2(c.total) + '</b> \u00b7 STT ' + inr2(c.stt) + ', stamp ' + inr2(c.stamp) + ', GST ' + inr2(c.gst) + (sd === 'SELL' ? ', DP ' + inr2(c.dp) : '');
+      if (!fv('charges').value) fv('charges').placeholder = c.total.toFixed(2);
+    }
+    form.addEventListener('input', refresh);
+    refresh();
+
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var q = Math.abs(parseFloat(fv('qty').value)), pr = parseFloat(fv('price').value);
+      var sd = fv('side').value;
+      if (!isFinite(q) || !isFinite(pr) || q <= 0 || pr <= 0) { toast('Enter a valid quantity and price.'); return; }
+      var auto = PA.computeCharges(sd, q, pr, S.settings);
+      var manual = parseFloat(fv('charges').value);
+      var charges = auto;
+      if (isFinite(manual) && Math.abs(manual - auto.total) > 0.01) {
+        charges = Object.assign({}, auto, { total: PA.r2(manual), manual: true });
+      }
+      var rec = {
+        id: t ? t.id : uid(),
+        symbol: fv('symbol').value.trim().toUpperCase(),
+        side: sd, qty: q, price: pr, date: fv('date').value,
+        charges: charges, src: t ? t.src : 'manual'
+      };
+      if (t) { S.trades = S.trades.map(function (x) { return x.id === t.id ? rec : x; }); toast('Updated.'); }
+      else { S.trades.push(rec); toast('Added.'); }
+      save(); closeModal(); render();
+    });
+  }
+
+  /* ================= PDF reader (built in, no network) ================= */
+  function latin1(u8) {
+    var out = '', CH = 8192;
+    for (var i = 0; i < u8.length; i += CH) {
+      out += String.fromCharCode.apply(null, u8.subarray(i, Math.min(i + CH, u8.length)));
+    }
+    return out;
+  }
+
+  function inflateAs(u8, fmt) {
+    if (typeof DecompressionStream === 'undefined') return Promise.resolve(null);
+    try {
+      var ds = new DecompressionStream(fmt);
+      var writer = ds.writable.getWriter();
+      writer.write(u8);
+      writer.close();
+      var reader = ds.readable.getReader();
+      var chunks = [], len = 0;
+      return new Promise(function (resolve) {
+        function pump() {
+          reader.read().then(function (r) {
+            if (r.done) {
+              var out = new Uint8Array(len), o = 0;
+              chunks.forEach(function (c) { out.set(c, o); o += c.length; });
+              resolve(out);
+              return;
+            }
+            chunks.push(r.value); len += r.value.length;
+            pump();
+          }).catch(function () { resolve(null); });
+        }
+        pump();
+      });
+    } catch (e) { return Promise.resolve(null); }
+  }
+  function inflate(u8) { return inflateAs(u8, 'deflate'); }
+  function inflateRaw(u8) { return inflateAs(u8, 'deflate-raw'); }
+
+  /* ================= XLSX reader (built in, no network) ================= */
+  function u16(b, o) { return b[o] | (b[o + 1] << 8); }
+  function u32(b, o) { return ((b[o] | (b[o + 1] << 8) | (b[o + 2] << 16) | (b[o + 3] << 24)) >>> 0); }
+
+  function zipEntries(bytes) {
+    var n = bytes.length, eocd = -1;
+    for (var i = n - 22; i >= Math.max(0, n - 66000); i--) {
+      if (bytes[i] === 0x50 && bytes[i + 1] === 0x4b && bytes[i + 2] === 0x05 && bytes[i + 3] === 0x06) { eocd = i; break; }
+    }
+    if (eocd < 0) return [];
+    var count = u16(bytes, eocd + 10);
+    var p = u32(bytes, eocd + 16);
+    var out = [];
+    for (var k = 0; k < count; k++) {
+      if (u32(bytes, p) !== 0x02014b50) break;
+      var method = u16(bytes, p + 10);
+      var compSize = u32(bytes, p + 20);
+      var nameLen = u16(bytes, p + 28);
+      var extraLen = u16(bytes, p + 30);
+      var commentLen = u16(bytes, p + 32);
+      var localOff = u32(bytes, p + 42);
+      var name = latin1(bytes.subarray(p + 46, p + 46 + nameLen));
+      var lNameLen = u16(bytes, localOff + 26);
+      var lExtraLen = u16(bytes, localOff + 28);
+      out.push({ name: name, method: method, start: localOff + 30 + lNameLen + lExtraLen, size: compSize });
+      p += 46 + nameLen + extraLen + commentLen;
+    }
+    return out;
+  }
+
+  function unzipEntry(bytes, e) {
+    var raw = bytes.subarray(e.start, e.start + e.size);
+    if (e.method === 0) return Promise.resolve(raw);
+    if (e.method === 8) return inflateRaw(raw);
+    return Promise.resolve(null);
+  }
+
+  function decodeXml(s) {
+    return String(s)
+      .replace(/&#x([0-9a-fA-F]+);/g, function (m, h) { return String.fromCharCode(parseInt(h, 16)); })
+      .replace(/&#(\d+);/g, function (m, d) { return String.fromCharCode(+d); })
+      .replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"').replace(/&apos;/g, "'")
+      .replace(/&amp;/g, '&');
+  }
+  function stripTags(s) { return decodeXml(String(s).replace(/<[^>]*>/g, '')); }
+
+  function colIdx(letters) {
+    var n = 0;
+    for (var i = 0; i < letters.length; i++) n = n * 26 + (letters.charCodeAt(i) - 64);
+    return n - 1;
+  }
+
+  function parseSharedStrings(xml) {
+    var out = [];
+    if (!xml) return out;
+    var re = /<si[^>]*>([\s\S]*?)<\/si>/g, m;
+    while ((m = re.exec(xml))) {
+      var parts = [], tre = /<t[^>]*>([\s\S]*?)<\/t>/g, t;
+      while ((t = tre.exec(m[1]))) parts.push(stripTags(t[1]));
+      out.push(parts.join(''));
+    }
+    return out;
+  }
+
+  function parseSheetXml(xml, shared) {
+    var rows = [], re = /<row[^>]*>([\s\S]*?)<\/row>/g, m;
+    while ((m = re.exec(xml))) {
+      var cells = m[1].split('<c ').slice(1), arr = [];
+      cells.forEach(function (c) {
+        var ref = c.match(/r="([A-Z]+)\d+"/);
+        var col = ref ? colIdx(ref[1]) : arr.length;
+        var tm = c.match(/\bt="([^"]+)"/);
+        var type = tm ? tm[1] : 'n';
+        var v = '';
+        if (type === 'inlineStr') {
+          var im = c.match(/<is>([\s\S]*?)<\/is>/);
+          v = im ? stripTags(im[1]) : '';
+        } else {
+          var vm = c.match(/<v[^>]*>([\s\S]*?)<\/v>/);
+          v = vm ? vm[1] : '';
+          if (type === 's') v = shared[+v] || '';
+          else v = decodeXml(v);
+        }
+        if (typeof v === 'string' && /^-?\d+(\.\d+)?$/.test(v)) v = Number(v);
+        arr[col] = v;
+      });
+      for (var i = 0; i < arr.length; i++) if (arr[i] === undefined) arr[i] = '';
+      if (arr.some(function (x) { return String(x).trim() !== ''; })) rows.push(arr);
+    }
+    return rows;
+  }
+
+  function parseXlsx(bytes) {
+    var entries = zipEntries(bytes);
+    if (!entries.length) return Promise.resolve([]);
+    var byName = {};
+    entries.forEach(function (e) { byName[e.name] = e; });
+    var names = entries.map(function (e) { return e.name; });
+    var sharedName = names.filter(function (n) { return /^xl\/sharedStrings\.xml$/i.test(n); })[0];
+    var sheets = names.filter(function (n) { return /^xl\/worksheets\/sheet\d+\.xml$/i.test(n); })
+      .sort(function (a, b) { return (+a.match(/sheet(\d+)/)[1]) - (+b.match(/sheet(\d+)/)[1]); });
+    if (!sheets.length) return Promise.resolve([]);
+
+    var head = sharedName ? unzipEntry(bytes, byName[sharedName]).then(function (d) { return d ? latin1(d) : ''; })
+      : Promise.resolve('');
+
+    return head.then(function (sharedXml) {
+      var shared = parseSharedStrings(sharedXml);
+      var tables = [], seq = Promise.resolve();
+      sheets.forEach(function (sn) {
+        seq = seq.then(function () {
+          return unzipEntry(bytes, byName[sn]).then(function (d) {
+            if (d) tables.push(parseSheetXml(latin1(d), shared));
+          });
+        });
+      });
+      return seq.then(function () { return tables; });
+    });
+  }
+
+  function findStreams(s) {
+    var out = [], idx = 0;
+    while (true) {
+      var st = s.indexOf('stream', idx);
+      if (st < 0) break;
+      var p = st + 6;
+      if (s[p] === '\r') p++;
+      if (s[p] === '\n') p++;
+      var en = s.indexOf('endstream', p);
+      if (en < 0) break;
+      var ds = s.lastIndexOf('<<', st);
+      out.push({ dict: ds >= 0 ? s.slice(ds, st) : '', start: p, end: en });
+      idx = en + 9;
+    }
+    return out;
+  }
+
+  function tokenizeContent(s) {
+    var toks = [], i = 0, n = s.length;
+    while (i < n) {
+      var c = s[i];
+      if (c === '(') {
+        var depth = 1, buf = '', j = i + 1;
+        while (j < n) {
+          var ch = s[j];
+          if (ch === '\\') {
+            var nx = s[j + 1] || '';
+            if (nx === 'n') { buf += '\n'; j += 2; continue; }
+            if (nx === 'r') { buf += '\r'; j += 2; continue; }
+            if (nx === 't') { buf += '\t'; j += 2; continue; }
+            if (nx === 'b' || nx === 'f') { j += 2; continue; }
+            if (nx === '(' || nx === ')' || nx === '\\') { buf += nx; j += 2; continue; }
+            if (nx === '\n') { j += 2; continue; }
+            if (nx >= '0' && nx <= '7') {
+              var oct = '', k = j + 1;
+              while (k < n && s[k] >= '0' && s[k] <= '7' && oct.length < 3) { oct += s[k]; k++; }
+              buf += String.fromCharCode(parseInt(oct, 8)); j = k; continue;
+            }
+            buf += nx; j += 2; continue;
+          }
+          if (ch === '(') { depth++; buf += ch; j++; continue; }
+          if (ch === ')') { depth--; if (depth === 0) { j++; break; } buf += ch; j++; continue; }
+          buf += ch; j++;
+        }
+        toks.push({ t: 's', v: buf }); i = j; continue;
+      }
+      if (c === '<') {
+        if (s[i + 1] === '<') { toks.push({ t: 'd' }); i += 2; continue; }
+        var e = s.indexOf('>', i);
+        if (e < 0) { i++; continue; }
+        var hex = s.slice(i + 1, e).replace(/[^0-9a-fA-F]/g, ''), out = '';
+        for (var k2 = 0; k2 + 1 < hex.length; k2 += 2) {
+          var code = parseInt(hex.substr(k2, 2), 16);
+          if (code > 0) out += String.fromCharCode(code);
+        }
+        if (out) toks.push({ t: 's', v: out });
+        i = e + 1; continue;
+      }
+      if (c === '>') { if (s[i + 1] === '>') { toks.push({ t: 'd' }); i += 2; continue; } i++; continue; }
+      if (c === '[') { toks.push({ t: '[' }); i++; continue; }
+      if (c === ']') { toks.push({ t: ']' }); i++; continue; }
+      if (c === '{' || c === '}') { i++; continue; }
+      if (/\s/.test(c)) { i++; continue; }
+      var j2 = i;
+      while (j2 < n && !/[\s()<>\[\]{}]/.test(s[j2])) j2++;
+      var tok = s.slice(i, j2);
+      i = j2;
+      if (!tok) { i++; continue; }
+      if (/^[-+]?(\d+\.?\d*|\.\d+)$/.test(tok)) toks.push({ t: 'n', v: parseFloat(tok) });
+      else toks.push({ t: 'o', v: tok });
+    }
+    return toks;
+  }
+
+  function contentItems(s) {
+    var toks = tokenizeContent(s);
+    var items = [], x = 0, y = 0, lead = 0, args = [], arr = null;
+    function push(str) {
+      if (str && /\S/.test(str)) items.push({ x: x, y: y, s: str });
+    }
+    for (var i = 0; i < toks.length; i++) {
+      var t = toks[i];
+      if (t.t === '[') { arr = []; continue; }
+      if (t.t === ']') { if (arr) { args.push({ arr: arr }); arr = null; } continue; }
+      if (t.t === 'n' || t.t === 's') { if (arr) arr.push(t.v); else args.push(t.v); continue; }
+      if (t.t === 'd') continue;
+      var op = t.v;
+      if (op === 'BT') { x = 0; y = 0; }
+      else if (op === 'Tm' && args.length >= 6) { x = +args[4]; y = +args[5]; }
+      else if (op === 'Td' && args.length >= 2) { x += +args[0]; y += +args[1]; }
+      else if (op === 'TD' && args.length >= 2) { x += +args[0]; y += +args[1]; lead = -args[1]; }
+      else if (op === 'T*') { y -= lead; }
+      else if (op === 'Tj') { var a = args[args.length - 1]; if (typeof a === 'string') push(a); }
+      else if (op === 'TJ') {
+        var A = args[args.length - 1];
+        if (A && A.arr) push(A.arr.filter(function (v) { return typeof v === 'string'; }).join(''));
+      }
+      else if (op === "'") { y -= lead; var b = args[args.length - 1]; if (typeof b === 'string') push(b); }
+      else if (op === '"') { y -= lead; var c2 = args[args.length - 1]; if (typeof c2 === 'string') push(c2); }
+      args = [];
+    }
+    return items;
+  }
+
+  function itemsToRows(items) {
+    var lines = [];
+    items.forEach(function (it) {
+      if (!it.s || !it.s.trim()) return;
+      var line = null;
+      for (var i = 0; i < lines.length; i++) {
+        if (Math.abs(lines[i].y - it.y) <= 2.5) { line = lines[i]; break; }
+      }
+      if (!line) { line = { y: it.y, cells: [] }; lines.push(line); }
+      line.cells.push({ x: it.x, s: it.s });
+    });
+    lines.sort(function (a, b) { return b.y - a.y; });
+    return lines.map(function (l) {
+      l.cells.sort(function (a, b) { return a.x - b.x; });
+      var out = [], cur = '', prev = null;
+      l.cells.forEach(function (c) {
+        if (prev !== null && c.x - prev > 5) { if (cur.trim()) out.push(cur.trim()); cur = ''; }
+        cur += (cur ? ' ' : '') + c.s;
+        prev = c.x + c.s.length * 4.2;
+      });
+      if (cur.trim()) out.push(cur.trim());
+      return out;
+    }).filter(function (r) { return r.length; });
+  }
+
+  function builtinPdfRows(bytes) {
+    var s = latin1(bytes);
+    var streams = findStreams(s);
+    var chain = Promise.resolve([]);
+    streams.forEach(function (st) {
+      chain = chain.then(function (acc) {
+        var raw = bytes.subarray(st.start, st.end);
+        var step = /FlateDecode/.test(st.dict) ? inflate(raw) : Promise.resolve(raw);
+        return step.then(function (data) {
+          if (!data) return acc;
+          var txt = latin1(data);
+          if (txt.indexOf('BT') < 0) return acc;
+          if (txt.indexOf('Tj') < 0 && txt.indexOf('TJ') < 0) return acc;
+          var items = contentItems(txt);
+          if (!items.length) return acc;
+          return acc.concat(itemsToRows(items));
+        });
+      });
+    });
+    return chain;
+  }
+
+  function pdfjsRows(bytes) {
+    if (!window.pdfjsLib) return Promise.reject(new Error('pdf.js not loaded'));
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    return pdfjsLib.getDocument({ data: bytes.slice(0) }).promise.then(function (pdf) {
+      var chain = Promise.resolve([]);
+      for (var i = 1; i <= pdf.numPages; i++) {
+        (function (n) {
+          chain = chain.then(function (acc) {
+            return pdf.getPage(n).then(function (page) {
+              return page.getTextContent().then(function (tc) {
+                var items = tc.items.filter(function (it) { return it.str && it.str.trim(); })
+                  .map(function (it) { return { x: it.transform[4], y: it.transform[5], s: it.str }; });
+                return acc.concat(itemsToRows(items));
+              });
+            });
+          });
+        })(i);
+      }
+      return chain;
+    });
+  }
+
+  function rowsFromText(text) {
+    var lines = String(text).split(/\r?\n/);
+    var out = [];
+    lines.forEach(function (l) {
+      if (!l.trim()) return;
+      var cells = l.split(/\s{2,}|\t|\s*\|\s*/).map(function (c) { return c.trim(); }).filter(function (c) { return c !== ''; });
+      if (cells.length < 2) cells = l.trim().split(/\s+/);
+      if (cells.length >= 2) out.push(cells);
+    });
+    return out;
+  }
+
+  /* ---------------- import flow ---------------- */
+  function wireImport() {
+    var drop = document.getElementById('drop');
+    var file = document.getElementById('file');
+    var box = document.getElementById('pasteBox');
+    if (box) box.addEventListener('input', function () { S.pasted = box.value; });
+    if (!drop || !file) return;
+    drop.addEventListener('click', function () { file.click(); });
+    file.addEventListener('change', function () { if (file.files[0]) handleFile(file.files[0]); });
+    ['dragenter', 'dragover'].forEach(function (ev) {
+      drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.add('is-over'); });
+    });
+    ['dragleave', 'drop'].forEach(function (ev) {
+      drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.remove('is-over'); });
+    });
+    drop.addEventListener('drop', function (e) {
+      if (e.dataTransfer.files && e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+    });
+  }
+
+  function setStatus(html) {
+    var el = document.getElementById('impStatus');
+    if (el) el.innerHTML = html;
+  }
+
+  function pickBest(tables, fileName) {
+    var best = null;
+    tables.forEach(function (rows) {
+      var res = PA.parseTable(rows, S.settings);
+      if (!best || res.trades.length > best.trades.length) best = res;
+    });
+    if (best) best.fileName = fileName || '';
+    return best;
+  }
+
+  function handleFile(f) {
+    var ext = (f.name.split('.').pop() || '').toLowerCase();
+    setStatus('<div class="hint"><span class="spin"></span> Reading ' + esc(f.name) + '\u2026</div>');
+
+    var job;
+    if (ext === 'pdf') {
+      job = f.arrayBuffer().then(function (buf) {
+        return builtinPdfRows(new Uint8Array(buf)).then(function (rows) {
+          var res = pickBest([rows], f.name);
+          if (res && res.trades.length) return res;
+          // second attempt: pdf.js if it happens to be available (online)
+          if (!window.pdfjsLib) return res;
+          return pdfjsRows(new Uint8Array(buf)).then(function (rows2) {
+            var res2 = pickBest([rows2], f.name);
+            return (res2 && res2.trades.length) ? res2 : (res || res2);
+          }).catch(function () { return res; });
+        });
+      });
+    } else if (ext === 'xlsx' || ext === 'xls') {
+      job = f.arrayBuffer().then(function (buf) {
+        var u8 = new Uint8Array(buf);
+        return parseXlsx(u8).then(function (tables) {
+          var res = pickBest(tables, f.name);
+          if (res && res.trades.length) return res;
+          if (!window.XLSX) return res;
+          var wb = XLSX.read(u8, { type: 'array' });
+          var t2 = wb.SheetNames.map(function (n) {
+            return XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: true, defval: '', blankrows: false });
+          });
+          var res2 = pickBest(t2, f.name);
+          return (res2 && res2.trades.length) ? res2 : res;
+        });
+      });
+    } else {
+      job = f.text().then(function (txt) { return pickBest([PA.parseCSV(txt)], f.name); });
+    }
+
+    job.then(function (res) {
+      if (!res || !res.trades.length) {
+        setStatus('<div class="note note--bad"><b>No trades found.</b> ' +
+          (res && res.issues && res.issues.length ? esc(res.issues[0]) : 'The columns did not look like a tradebook or P&amp;L statement.') +
+          ' Try the paste-text option below, or export the tradebook from your broker.</div>');
+        return;
+      }
+      S.imp = res;
+      render();
+      setStatus('<div class="note note--ok">Read ' + res.trades.length + ' transactions. Check the preview below.</div>');
+    }).catch(function (err) {
+      setStatus('<div class="note note--bad"><b>Could not read that file.</b> ' + esc(err && err.message ? err.message : String(err)) + '</div>');
+    });
+  }
+
+  /* ---------------- demo ---------------- */
+  function loadDemo() {
+    var t = [], d = [];
+    function add(sym, side, qty, price, date) {
+      t.push({ id: uid(), symbol: sym, side: side, qty: qty, price: price, date: date, charges: PA.computeCharges(side, qty, price, S.settings), src: 'demo' });
+    }
+    add('RELIANCE', 'BUY', 50, 1280, '2025-02-10');
+    add('RELIANCE', 'BUY', 30, 1355, '2025-06-18');
+    add('RELIANCE', 'SELL', 60, 1462, '2025-11-05');
+    add('TCS', 'BUY', 20, 3550, '2025-03-05');
+    add('TCS', 'SELL', 20, 3180, '2026-01-20');
+    add('HDFCBANK', 'BUY', 100, 1650, '2025-01-15');
+    add('HDFCBANK', 'SELL', 100, 1890, '2026-04-12');
+    add('INFY', 'BUY', 40, 1520, '2025-05-22');
+    add('INFY', 'SELL', 40, 1410, '2025-09-30');
+    add('ITC', 'BUY', 200, 415, '2025-04-08');
+    add('ITC', 'SELL', 200, 468, '2026-05-15');
+    add('TATAMOTORS', 'BUY', 60, 720, '2025-08-01');
+    add('TATAMOTORS', 'BUY', 40, 680, '2025-12-10');
+    add('TATAMOTORS', 'SELL', 70, 795, '2026-06-20');
+    add('WIPRO', 'BUY', 150, 245, '2025-07-07');
+    add('WIPRO', 'SELL', 150, 232, '2026-03-03');
+    add('ETERNAL', 'BUY', 300, 210, '2025-06-05');
+    add('ETERNAL', 'SELL', 300, 268, '2026-02-18');
+    add('SUNPHARMA', 'BUY', 50, 1450, '2026-01-08');
+    add('SUNPHARMA', 'SELL', 50, 1585, '2026-07-22');
+    add('SBIN', 'BUY', 80, 790, '2025-09-12');
+    add('SBIN', 'BUY', 40, 845, '2026-02-25');
+    add('ASIANPAINT', 'BUY', 30, 2380, '2025-10-15');
+    add('BAJFINANCE', 'BUY', 15, 6900, '2025-11-20');
+    add('HINDUNILVR', 'BUY', 25, 2410, '2026-03-11');
+
+    d.push({ id: uid(), symbol: 'ITC', exDate: '2025-06-04', perShare: 7.5, shares: 200, tds: 150 });
+    d.push({ id: uid(), symbol: 'HDFCBANK', exDate: '2025-07-18', perShare: 11, shares: 100, tds: 110 });
+    d.push({ id: uid(), symbol: 'RELIANCE', exDate: '2025-08-14', perShare: 5.5, shares: 80, tds: 44 });
+    d.push({ id: uid(), symbol: 'SBIN', exDate: '2026-05-20', perShare: 4.4, shares: 120, tds: 52.8 });
+
+    S.trades = t; S.dividends = d;
+    S.prices = { SBIN: 862, ASIANPAINT: 2455, BAJFINANCE: 7180, HINDUNILVR: 2568 };
+    save(); S.tab = 'dashboard'; render();
+    toast('Demo loaded \u2014 25 transactions.');
+  }
+
+  /* ---------------- exports ---------------- */
+  function download(name, text, type) {
+    var blob = new Blob([text], { type: type || 'text/plain;charset=utf-8' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    document.body.appendChild(a); a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1200);
+  }
+  function backup() {
+    download('ledger-backup.json', JSON.stringify({
+      version: 2, exported: new Date().toISOString(),
+      trades: S.trades, dividends: S.dividends, prices: S.prices, settings: S.settings
+    }, null, 2), 'application/json');
+    toast('Backup downloaded.');
+  }
+  function exportCsv() {
+    if (!S.trades.length) { toast('Nothing to export yet.'); return; }
+    var lines = ['Symbol,Side,Quantity,Price,Date,Charges,Source'];
+    S.trades.slice().sort(function (a, b) { return (a.date || '') < (b.date || '') ? -1 : 1; }).forEach(function (t) {
+      lines.push([t.symbol, t.side, t.qty, t.price, t.date, (t.charges && t.charges.total) || 0, t.src || 'manual'].join(','));
+    });
+    download('transactions.csv', lines.join('\n'), 'text/csv;charset=utf-8');
+    toast('CSV exported.');
+  }
+
+  /* ---------------- events ---------------- */
+  document.addEventListener('click', function (e) {
+    var el = e.target.closest('[data-act]');
+    if (!el) return;
+    var act = el.dataset.act;
+
+    if (act === 'tab') { S.tab = el.dataset.tab; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+    if (act === 'demo') { loadDemo(); return; }
+    if (act === 'addTrade') { tradeModal(null); return; }
+    if (act === 'editTrade') { tradeModal(el.dataset.id); return; }
+    if (act === 'viewTx') { S.f.view = 'tx'; render(); return; }
+    if (act === 'viewClosed') { S.f.view = 'closed'; render(); return; }
+    if (act === 'delTrade') {
+      var t = S.trades.filter(function (x) { return x.id === el.dataset.id; })[0];
+      if (t && confirm('Delete ' + t.side + ' ' + t.qty + ' ' + t.symbol + ' on ' + t.date + '?')) {
+        S.trades = S.trades.filter(function (x) { return x.id !== el.dataset.id; });
+        save(); render(); toast('Deleted.');
+      }
+      return;
+    }
+    if (act === 'delDiv') {
+      S.dividends = S.dividends.filter(function (x) { return x.id !== el.dataset.id; });
+      save(); render(); toast('Removed.');
+      return;
+    }
+    if (act === 'closeModal' || act === 'closeModalBg') { closeModal(); return; }
+    if (act === 'cancelImport') { S.imp = null; render(); return; }
+    if (act === 'confirmImport') {
+      var fresh = S.imp.trades.filter(function (x) { return !isDup(x); });
+      fresh.forEach(function (x) { x.id = uid(); S.trades.push(x); });
+      save();
+      var n = fresh.length;
+      S.imp = null; S.tab = 'trades'; S.f.view = 'tx';
+      render(); toast(n + ' imported.');
+      return;
+    }
+    if (act === 'parsePaste') {
+      var box = document.getElementById('pasteBox');
+      var txt = box ? box.value : '';
+      if (!txt.trim()) { toast('Paste some text first.'); return; }
+      var res = pickBest([rowsFromText(txt)], 'pasted text');
+      if (!res || !res.trades.length) { toast('Could not find trades in that text.'); return; }
+      S.imp = res; render();
+      setStatus('<div class="note note--ok">Read ' + res.trades.length + ' transactions from pasted text.</div>');
+      return;
+    }
+    if (act === 'recalc') {
+      if (!confirm('Recalculate charges for all ' + S.trades.length + ' transactions? Manual overrides will be replaced.')) return;
+      S.trades.forEach(function (t) { t.charges = PA.computeCharges(t.side, Math.abs(t.qty), t.price, S.settings); });
+      save(); render(); toast('Charges recalculated.');
+      return;
+    }
+    if (act === 'backup') { backup(); return; }
+    if (act === 'exportCsv') { exportCsv(); return; }
+    if (act === 'restoreClick') { var rf = document.getElementById('restoreFile'); if (rf) rf.click(); return; }
+    if (act === 'clearAll') {
+      if (!confirm('Delete all ' + S.trades.length + ' transactions and ' + S.dividends.length + ' dividends from this device?\n\nThis cannot be undone. Download a backup first if you may want them back.')) return;
+      S.trades = []; S.dividends = []; S.prices = {}; S.imp = null;
+      save(); render(); toast('All data deleted.');
+      return;
+    }
+  });
+
+  document.addEventListener('change', function (e) {
+    var id = e.target.id;
+    if (id === 'fFy') { S.f.fy = e.target.value; render(); return; }
+    if (e.target.dataset && e.target.dataset.price) {
+      var sym = e.target.dataset.price;
+      var v = parseFloat(e.target.value);
+      if (isFinite(v) && v > 0) S.prices[sym] = v; else delete S.prices[sym];
+      save(); render();
+      return;
+    }
+    if (id === 'restoreFile') {
+      var f = e.target.files[0];
+      if (!f) return;
+      f.text().then(function (txt) {
+        var d = JSON.parse(txt);
+        if (!d.trades) throw new Error('bad file');
+        S.trades = d.trades || [];
+        S.dividends = d.dividends || [];
+        S.prices = d.prices || {};
+        S.settings = Object.assign(PA.defaultSettings(), d.settings || {});
+        save(); render(); toast('Backup restored.');
+      }).catch(function () { toast('That file is not a backup.'); });
+      return;
+    }
+  });
+
+  document.addEventListener('input', function (e) {
+    if (e.target.id === 'q') {
+      S.f.q = e.target.value;
+      var q = S.f.q.toLowerCase();
+      document.querySelectorAll('tr[data-search]').forEach(function (tr) {
+        tr.style.display = !q || tr.dataset.search.indexOf(q) > -1 ? '' : 'none';
+      });
+    }
+  });
+
+  document.addEventListener('submit', function (e) {
+    if (e.target.id === 'divForm') {
+      e.preventDefault();
+      var f = e.target;
+      var g = function (n) { return f.elements[n]; };
+      var tdsRaw = g('tds').value.trim();
+      S.dividends.push({
+        id: uid(),
+        symbol: g('symbol').value.trim().toUpperCase(),
+        exDate: g('exDate').value,
+        perShare: parseFloat(g('perShare').value) || 0,
+        shares: parseFloat(g('shares').value) || 0,
+        tds: tdsRaw === '' ? null : parseFloat(tdsRaw)
+      });
+      save(); render(); toast('Dividend added.');
+      return;
+    }
+    if (e.target.id === 'setForm') {
+      e.preventDefault();
+      ['brokeragePct', 'brokerageCap', 'brokerageMin', 'sttPct', 'exchPct', 'sebiPct', 'stampPct', 'gstPct', 'dpCharge',
+        'stcgRate', 'ltcgRate', 'ltcgExempt', 'holdDays', 'tdsPct'].forEach(function (k) {
+        var el = document.getElementById('s_' + k);
+        if (el) S.settings[k] = parseFloat(el.value) || 0;
+      });
+      save(); render(); toast('Settings saved.');
+      return;
+    }
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') closeModal();
+  });
+
+  /* ---------------- boot ---------------- */
+  window.__pa = {
+    builtinPdfRows: builtinPdfRows, itemsToRows: itemsToRows,
+    contentItems: contentItems, rowsFromText: rowsFromText, pickBest: pickBest, parseXlsx: parseXlsx, zipEntries: zipEntries,
+    parseSheetXml: parseSheetXml, stripTags: stripTags, latin1: latin1, unzipEntry: unzipEntry
+  };
+  load();
+  render();
+})();
+
+</script>
+</body>
+</html>
